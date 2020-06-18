@@ -73,9 +73,14 @@ int main(int argc, char **argv)
   if(argc>11) {
     if(argv[11]) enabledGPUMPI = 1;
   }
+  
+  int createDetailedPingPongFile = 0;
+  if(argc>12) {
+    if(atoi(argv[10])) createDetailedPingPongFile = 1;
+  }
 
   options.setArgs("DEVICE NUMBER", "LOCAL-RANK");
-  if(argc>12) {
+  if(argc>11) {
     std::string deviceNumber;
     deviceNumber.assign(strdup(argv[12]));
     options.setArgs("DEVICE NUMBER", deviceNumber);
@@ -196,8 +201,7 @@ int main(int argc, char **argv)
   MPI_Barrier(mesh->comm);
   {
     const int nPairs = mesh->size/2;
-    pingPongMulti(nPairs, 0, mesh->device, mesh->comm);
-    if(enabledGPUMPI) pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mesh->comm);
+    pingPongMulti(nPairs, enabledGPUMPI, createDetailedPingPongFile, mesh->device, mesh->comm);
   }
 
   for (auto const& ogs_mode_enum : ogs_mode_list) { 
