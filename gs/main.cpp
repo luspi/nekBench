@@ -25,7 +25,7 @@ int main(int argc, char **argv)
   setupAide options;
 
   if(argc<6){
-    if(rank ==0) printf("usage: ./gs N nelX nelY nelZ SERIAL|CUDA|HIP|OPENCL <ogs_mode> <nRepetitions> <enable timers> <run dummy kernel> <use FP32> <GPU aware MPI> <DEVICE-ID>\n");
+    if(rank ==0) printf("usage: ./gs N nelX nelY nelZ SERIAL|CUDA|HIP|OPENCL <ogs_mode> <nRepetitions> <enable timers> <run dummy kernel> <use FP32> <GPU aware MPI> <create detailed pingpong file> <DEVICE-ID>\n");
 
     MPI_Finalize();
     exit(1);
@@ -46,11 +46,11 @@ int main(int argc, char **argv)
       if(rank == 0) printf("invalid ogs_mode!\n");
       MPI_Abort(MPI_COMM_WORLD,1);
     }
-    if(mode) ogs_mode_list.push_back((ogs_mode)(mode-1)); 
+    if(mode) ogs_mode_list.push_back((ogs_mode)(mode-1));
   } else {
-    ogs_mode_list.push_back(OGS_DEFAULT); 
-    ogs_mode_list.push_back(OGS_HOSTMPI); 
-    ogs_mode_list.push_back(OGS_DEVICEMPI); 
+    ogs_mode_list.push_back(OGS_DEFAULT);
+    ogs_mode_list.push_back(OGS_HOSTMPI);
+    ogs_mode_list.push_back(OGS_DEVICEMPI);
   }
 
   int Ntests = 100;
@@ -73,16 +73,16 @@ int main(int argc, char **argv)
   if(argc>11) {
     if(argv[11]) enabledGPUMPI = 1;
   }
-  
+
   int createDetailedPingPongFile = 0;
   if(argc>12) {
     if(atoi(argv[10])) createDetailedPingPongFile = 1;
   }
 
   options.setArgs("DEVICE NUMBER", "LOCAL-RANK");
-  if(argc>11) {
+  if(argc>13) {
     std::string deviceNumber;
-    deviceNumber.assign(strdup(argv[12]));
+    deviceNumber.assign(strdup(argv[13]));
     options.setArgs("DEVICE NUMBER", deviceNumber);
   }
 
@@ -124,10 +124,10 @@ int main(int argc, char **argv)
   timer::init(mesh->comm, mesh->device, 0);
 
   // setup gs
-  const dlong Nlocal = mesh->Nelements*mesh->Np; 
+  const dlong Nlocal = mesh->Nelements*mesh->Np;
   ogs_t *ogs= ogsSetup(Nlocal, mesh->globalIds, mesh->comm, 1, mesh->device);
   mygsSetup(ogs, enabledTimer);
-  mesh->ogs = ogs; 
+  mesh->ogs = ogs;
 
   meshPrintPartitionStatistics(mesh);
 
@@ -180,14 +180,14 @@ int main(int argc, char **argv)
       double *Q = (double*) calloc(Nlocal, unit_size);
       o_q.copyTo(Q, Nlocal*unit_size);
       for(int i=0; i<Nlocal; i++) {
-        double tmp = std::nearbyint(Q[i]); 
+        double tmp = std::nearbyint(Q[i]);
         nPts += (long long int)tmp;
-        //if(tmp != 1) printf("here %g\n",tmp); 
+        //if(tmp != 1) printf("here %g\n",tmp);
       }
       free(Q);
     }
     MPI_Allreduce(MPI_IN_PLACE,&nPts,1,MPI_LONG_LONG_INT,MPI_SUM,mesh->comm);
-    if(nPts - NX*NY*NZ*(long long int)mesh->Np != 0) { 
+    if(nPts - NX*NY*NZ*(long long int)mesh->Np != 0) {
       if(mesh->rank == 0) printf("\ncorrectness check failed for mode=%d! %ld\n", ogs_mode_enum, nPts);
       fflush(stdout);
       //MPI_Abort(mesh->comm, 1);
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
     pingPongMulti(nPairs, enabledGPUMPI, createDetailedPingPongFile, mesh->device, mesh->comm);
   }
 
-  for (auto const& ogs_mode_enum : ogs_mode_list) { 
+  for (auto const& ogs_mode_enum : ogs_mode_list) {
 
   // gs
   timer::reset();
@@ -213,7 +213,7 @@ int main(int argc, char **argv)
   const double start = MPI_Wtime();
   for(int test=0;test<Ntests;++test) {
     mygsStart(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
-    if(dummyKernel) { 
+    if(dummyKernel) {
       if(enabledTimer) timer::tic("dummyKernel");
       kernel(Nlocal, o_U);
       if(enabledTimer) timer::toc("dummyKernel");
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
   MPI_Barrier(mesh->comm);
   const double elapsed = (MPI_Wtime() - start)/Ntests;
 
-  // print stats 
+  // print stats
   const int Ntimer = 10;
   double etime[Ntimer];
   if(enabledTimer) {
