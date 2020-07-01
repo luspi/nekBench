@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <occa.hpp>
+#include <time.h>
 
 #define FIELD_WIDTH 20
 #define FLOAT_PRECISION 2
@@ -10,6 +11,13 @@
 #define LAT_SKIP_SMALL 100
 #define LAT_LOOP_LARGE 1000
 #define LAT_SKIP_LARGE 10
+
+// #define PP_GPU_THROUGH_CPU
+
+#ifdef PP_GPU_THROUGH_CPU
+#include <cuda_runtime.h>
+#include <cuda.h>
+#endif
 
 #define MPI_CHECK(stmt)                                          \
 do {                                                             \
@@ -66,20 +74,20 @@ int pingPongMulti(int pairs, int useDevice, int createDetailedPingPongFile, occa
       o_r_buf = device.malloc(options.max_message_size);
       s_buf = (char*) o_s_buf.ptr();
       r_buf = (char*) o_s_buf.ptr();
-    } else {   
+    } else {
       unsigned long align_size = sysconf(_SC_PAGESIZE);
       posix_memalign((void**)&s_buf, align_size, options.max_message_size);
       posix_memalign((void**)&r_buf, align_size, options.max_message_size);
     }
 
-    if(rank == 0) {
-        printf("\nping pong multi - pairs: %d useDevice: %d\n\n", pairs, useDevice);
-        fflush(stdout);
-    }
+     if(rank == 0) {
+         printf("\nping pong multi - pairs: %d useDevice: %d\n\n", pairs, useDevice);
+         fflush(stdout);
+     }
 
-    MPI_CHECK(MPI_Barrier(comm));
-    multi_latency(comm);
-    MPI_CHECK(MPI_Barrier(comm));
+     MPI_CHECK(MPI_Barrier(comm));
+     multi_latency(comm);
+     MPI_CHECK(MPI_Barrier(comm));
 
     if(rank == 0) {
         if(size > 2)
@@ -98,7 +106,7 @@ int pingPongMulti(int pairs, int useDevice, int createDetailedPingPongFile, occa
       o_r_buf.free();
     } else {
       free(s_buf);
-      free(r_buf); 
+      free(r_buf);
     }
 
     return EXIT_SUCCESS;
@@ -182,39 +190,46 @@ static void multi_latency(MPI_Comm comm)
 }
 
 static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
-    
+
     int myRank, mpiSize;
     MPI_Comm_rank(comm, &myRank);
     MPI_Comm_size(comm, &mpiSize);
-    
-    int all_sizes[21];
-    double all_min[21];
-    double all_max[21];
-    double all_avg[21];
-    
+
+    std::vector<int> all_sizes;
+    std::vector<double> all_min;
+    std::vector<double> all_max;
+    std::vector<double> all_avg;
+
     // initialize stats
     int i = 0;
-    for(int size = options.min_message_size; size <= options.max_message_size; size  = (size ? size * 2 : 1)) {
-        all_sizes[i] = size;
-        all_min[i] = 99999;
-        all_max[i] = 0;
-        all_avg[i] = 0;
+    for(int size = options.min_message_size; size <= options.max_message_size; size=((int)(size*1.1) > size ? (int)(size*1.1) : size+1)) {
+        all_sizes.push_back(size);
+        all_min.push_back(99999);
+        all_max.push_back(0);
+        all_avg.push_back(0);
         ++i;
     }
-    
+
     FILE *fp;
     if(0 == myRank && writeToFile) {
-        fp = fopen("pingpong.txt", "w");
+
+        time_t rawtime;
+        struct tm *timeinfo;
+        char buffer[80];
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+
+        strftime(buffer,80,"pingpong_%Y_%m_%d_%R.txt", timeinfo);
+        fp = fopen(buffer, "w");
         fprintf(fp, "%-10s %-10s %-15s %-15s\n", "sender", "receiver", "bytes", "latency");
+
     }
-    
-    
-    
+
     for(int iRank = 1; iRank < mpiSize; ++iRank) {
-        
+
         int iSize = 0;
-        
-        for(int size = options.min_message_size; size <= options.max_message_size; size  = (size ? size * 2 : 1)) {
+
+        for(int size = options.min_message_size; size <= options.max_message_size; size=((int)(size*1.1) > size ? (int)(size*1.1) : size+1)) {
 
             MPI_CHECK(MPI_Barrier(comm));
 
@@ -225,55 +240,96 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                 options.iterations = options.iterations;
                 options.skip = options.skip;
             }
-            
+
             double latency = 0;
-            
+
+#ifdef PP_GPU_THROUGH_CPU
+            unsigned char *h_s_buf = new unsigned char[size];
+            unsigned char *h_r_buf = new unsigned char[size];
+            unsigned char *d_s_buf;
+            unsigned char *d_r_buf;
+            cudaMalloc((void**)&d_s_buf, size*sizeof(unsigned char));
+            cudaMalloc((void**)&d_r_buf, size*sizeof(unsigned char));
+            cudaMemcpy(d_s_buf, s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(d_r_buf, r_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
+#endif
+
             if(myRank == iRank) {
-                
+
                 double t_start = 0;
-                
+
                 for(int i = 0; i < options.iterations + options.skip; i++) {
 
                     if(i == options.skip)
                         t_start = MPI_Wtime();
 
+#ifdef PP_GPU_THROUGH_CPU
+                    cudaMemcpy((void*)h_s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
+                    MPI_CHECK(MPI_Send(h_s_buf, size, MPI_CHAR, 0, 1, comm));
+                    MPI_CHECK(MPI_Recv(h_r_buf, size, MPI_CHAR, 0, 1, comm, MPI_STATUS_IGNORE));
+
+                    cudaMemcpy(d_r_buf, (void*)h_r_buf, size*sizeof(unsigned char), cudaMemcpyHostToDevice);
+#else
                     MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, 0, 1, comm));
                     MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, 0, 1, comm, MPI_STATUS_IGNORE));
+#endif
+
                 }
 
                 double t_end = MPI_Wtime();
-                
+
                 latency = (t_end - t_start) * 1.0e6 / (2.0 * options.iterations);
                 MPI_CHECK(MPI_Send(&latency, 1, MPI_DOUBLE, 0, 2, comm));
-                
+
             } else if(myRank == 0) {
-                
+
                 double t_start = 0;
-                
+
                 for(int i = 0; i < options.iterations + options.skip; i++) {
 
                     if(i == options.skip)
                         t_start = MPI_Wtime();
 
+#ifdef PP_GPU_THROUGH_CPU
+                    cudaMemcpy((void*)h_s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
+                    MPI_CHECK(MPI_Recv(h_r_buf, size, MPI_CHAR, iRank, 1, comm, MPI_STATUS_IGNORE));
+                    MPI_CHECK(MPI_Send(h_s_buf, size, MPI_CHAR, iRank, 1, comm));
+
+                    cudaMemcpy(d_r_buf, (void*)h_r_buf, size*sizeof(unsigned char), cudaMemcpyHostToDevice);
+#else
                     MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, iRank, 1, comm, MPI_STATUS_IGNORE));
                     MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, iRank, 1, comm));
+#endif
+
                 }
 
                 double t_end = MPI_Wtime();
-                
+
                 latency = (t_end - t_start) * 1.0e6 / (2.0 * options.iterations);
-                MPI_CHECK(MPI_Send(&latency, 1, MPI_DOUBLE, 0, 3, comm));
-                
+
             } // all other ranks are idle
-            
+
+#ifdef PP_GPU_THROUGH_CPU
+            delete[] h_s_buf;
+            delete[] h_r_buf;
+
+            cudaMemcpy(s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(r_buf, d_r_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
+
+            cudaFree(d_s_buf);
+            cudaFree(d_r_buf);
+#endif
+
             MPI_CHECK(MPI_Barrier(comm));
 
             if(0 == myRank) {
-                
+
                 double peer_latency;
                 MPI_CHECK(MPI_Recv(&peer_latency, 1, MPI_DOUBLE, iRank, 2, comm, MPI_STATUS_IGNORE));
                 double avg_lat = (latency+peer_latency)/2.0;
-                
+
                 if(all_min[iSize] > avg_lat)
                     all_min[iSize] = avg_lat;
                 if(all_max[iSize] < avg_lat)
@@ -285,12 +341,12 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                 }
 
             }
-            
+
             ++iSize;
-            
+
         }
     }
-    
+
     if(myRank == 0) {
         printf("%-10s %-13s %-13s %-13s\n", "bytes", "average", "minimum", "maximum");
         for(int i = 0; i < 21; ++i) {
@@ -305,5 +361,5 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
         if(writeToFile)
             fclose(fp);
     }
-    
+
 }

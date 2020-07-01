@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 
   int createDetailedPingPongFile = 0;
   if(argc>12) {
-    if(atoi(argv[10])) createDetailedPingPongFile = 1;
+    if(atoi(argv[12])) createDetailedPingPongFile = 1;
   }
 
   options.setArgs("DEVICE NUMBER", "LOCAL-RANK");
