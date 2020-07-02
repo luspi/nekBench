@@ -221,7 +221,7 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
 
         strftime(buffer,80,"pingpong_%Y_%m_%d_%R.txt", timeinfo);
         fp = fopen(buffer, "w");
-        fprintf(fp, "%-10s %-10s %-15s %-15s\n", "sender", "receiver", "bytes", "latency");
+        fprintf(fp, "%-10s %-10s %-10s %-10s %-15s %-15s\n", "sender", "total", "receiver", "loopcount", "bytes", "timing");
 
     }
 
@@ -337,7 +337,7 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                 all_avg[iSize] += avg_lat;
 
                 if(writeToFile) {
-                    fprintf(fp, "%-10d %-10d %-15d %-15f\n", iRank, 0, size, avg_lat);
+                    fprintf(fp, "%-10d %-10d %-10d %-10d %-15d %-15f\n", iRank, mpiSize, 0, options.iterations, size, avg_lat);
                 }
 
             }
