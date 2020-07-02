@@ -14,6 +14,7 @@
 
 #include "ping_pong.h"
 #include "memory_copy.h"
+#include "vectorsum.h"
 
 #include "mygs.h"
 
@@ -198,8 +199,11 @@ int main(int argc, char **argv)
   if(mesh->rank == 0) cout << "\nstarting measurement ...\n"; fflush(stdout);
 
   // device memcopy
-  if(rank == 0)
-    deviceMemcpyTest(mesh->device);
+  if(rank == 0) {
+    vectorSumTest(enabledGPUMPI, mesh->device);
+    if(enabledGPUMPI)
+      deviceMemcpyTest(mesh->device);
+  }
 
   // ping pong
   mesh->device.finish();

@@ -8,12 +8,15 @@ export LD = mpic++
 
 export NALIGN ?= 64
 
+export CUDA_INCLUDE_PATH="/usr/local/cuda/include"
+export CUDA_LIBRARY_PATH="/usr/local/cuda/lib"
+
 export OCCA_CUDA_ENABLED=1
 export OCCA_HIP_ENABLED=0
 export OCCA_OPENCL_ENABLED=0
 export OCCA_METAL_ENABLED=0
-#export OCCA_INCLUDE_PATH="/usr/local/cuda/include"
-#export OCCA_LIBRARY_PATH="/usr/local/cuda/lib"
+export OCCA_INCLUDE_PATH=$(CUDA_INCLUDE_PATH)
+export OCCA_LIBRARY_PATH=$(CUDA_LIBRARY_PATH)
 
 #########################################################
 ifneq (,$(strip $(INSTALLDIR)))
@@ -56,7 +59,7 @@ export CFLAGS = -I. -DOCCA_VERSION_1_0 $(cCompilerFlags) $(flags) -I$(HDRDIR) -I
 
 export CXXFLAGS = -I. -DOCCA_VERSION_1_0 $(compilerFlags) $(flags) -I$(HDRDIR) -I$(LIBGSDIR)/src -I$(OLIBGSDIR) -I$(OLIBGSDIR)/include -DDOGS='"$(PREFIX)/libgs/"' -D DBP='"$(PREFIX)/"' $(paths)
 
-LDFLAGS = -lgfortran -fopenmp
+LDFLAGS = -lgfortran -fopenmp -L$(CUDA_LIBRARY_PATH) -lcuda -lcudart -lcublas
 LDFLAGS_BLAS = $(PREFIX)/blasLapack/lib/libBlasLapack.a
 LDFLAGS_OCCA = -L$(PREFIX)/occa/lib -locca
 LDFLAGS_GS = -L$(PREFIX)/libgs/lib -logs -L$(PREFIX)/libgs/lib -lgs 
