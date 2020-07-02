@@ -16,17 +16,18 @@ $(OGSDIR)/ogs.hpp
 
 # rule for .c files
 .c.o: $(DEPS)
-	$(CC) $(CFLAGS) -o $*.o -c $*.c 
+	$(CC) $(CFLAGS) -o $*.o -c $*.c
 
 .cpp.o: $(DEPS)
 	$(CXX) $(CXXFLAGS) -o $*.o -c $*.cpp
 
 .f.o: $(DEPS)
-	$(FC) $(CFLAGS) -o $*.o -c $*.f 
+	$(FC) $(CFLAGS) -o $*.o -c $*.f
 
 # list of objects to be compiled
 AOBJS    = \
 ./ping_pong.o \
+./memory_copy.o \
 ./mygs.o \
 ./main.o
 

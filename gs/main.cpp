@@ -13,6 +13,7 @@
 #include "timer.hpp"
 
 #include "ping_pong.h"
+#include "memory_copy.h"
 
 #include "mygs.h"
 
@@ -195,6 +196,10 @@ int main(int argc, char **argv)
   }
 
   if(mesh->rank == 0) cout << "\nstarting measurement ...\n"; fflush(stdout);
+
+  // device memcopy
+  if(rank == 0)
+    deviceMemcpyTest(mesh->device);
 
   // ping pong
   mesh->device.finish();
