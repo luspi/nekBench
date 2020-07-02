@@ -14,11 +14,6 @@
 
 // #define PP_GPU_THROUGH_CPU
 
-#ifdef PP_GPU_THROUGH_CPU
-#include <cuda_runtime.h>
-#include <cuda.h>
-#endif
-
 #define MPI_CHECK(stmt)                                          \
 do {                                                             \
    int mpi_errno = (stmt);                                       \
@@ -46,6 +41,8 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm);
 // GLOBALS
 struct options_t options;
 char *s_buf, *r_buf;
+occa::memory o_s_buf, o_r_buf;
+
 
 extern "C" { // Begin C Linkage
 int pingPongMulti(int pairs, int useDevice, int createDetailedPingPongFile, occa::device device, MPI_Comm comm)
@@ -66,14 +63,16 @@ int pingPongMulti(int pairs, int useDevice, int createDetailedPingPongFile, occa
     options.iterations_large = LAT_LOOP_LARGE;
     options.skip_large = LAT_SKIP_LARGE;
 
-    occa::memory o_s_buf;
-    occa::memory o_r_buf;
-
     if(useDevice) {
       o_s_buf = device.malloc(options.max_message_size);
       o_r_buf = device.malloc(options.max_message_size);
+#ifdef PP_GPU_THROUGH_CPU
+      s_buf = (char*) malloc(options.max_message_size);
+      r_buf = (char*) malloc(options.max_message_size);
+#else
       s_buf = (char*) o_s_buf.ptr();
       r_buf = (char*) o_s_buf.ptr();
+#endif
     } else {
       unsigned long align_size = sysconf(_SC_PAGESIZE);
       posix_memalign((void**)&s_buf, align_size, options.max_message_size);
@@ -243,17 +242,6 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
 
             double latency = 0;
 
-#ifdef PP_GPU_THROUGH_CPU
-            unsigned char *h_s_buf = new unsigned char[size];
-            unsigned char *h_r_buf = new unsigned char[size];
-            unsigned char *d_s_buf;
-            unsigned char *d_r_buf;
-            cudaMalloc((void**)&d_s_buf, size*sizeof(unsigned char));
-            cudaMalloc((void**)&d_r_buf, size*sizeof(unsigned char));
-            cudaMemcpy(d_s_buf, s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
-            cudaMemcpy(d_r_buf, r_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
-#endif
-
             if(myRank == iRank) {
 
                 double t_start = 0;
@@ -264,15 +252,12 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                         t_start = MPI_Wtime();
 
 #ifdef PP_GPU_THROUGH_CPU
-                    cudaMemcpy((void*)h_s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToHost);
-
-                    MPI_CHECK(MPI_Send(h_s_buf, size, MPI_CHAR, 0, 1, comm));
-                    MPI_CHECK(MPI_Recv(h_r_buf, size, MPI_CHAR, 0, 1, comm, MPI_STATUS_IGNORE));
-
-                    cudaMemcpy(d_r_buf, (void*)h_r_buf, size*sizeof(unsigned char), cudaMemcpyHostToDevice);
-#else
+                    o_s_buf.copyTo(s_buf, size, 0);
+#endif
                     MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, 0, 1, comm));
                     MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, 0, 1, comm, MPI_STATUS_IGNORE));
+#ifdef PP_GPU_THROUGH_CPU
+                    o_r_buf.copyFrom(r_buf, size, 0);
 #endif
 
                 }
@@ -292,15 +277,12 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                         t_start = MPI_Wtime();
 
 #ifdef PP_GPU_THROUGH_CPU
-                    cudaMemcpy((void*)h_s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToHost);
-
-                    MPI_CHECK(MPI_Recv(h_r_buf, size, MPI_CHAR, iRank, 1, comm, MPI_STATUS_IGNORE));
-                    MPI_CHECK(MPI_Send(h_s_buf, size, MPI_CHAR, iRank, 1, comm));
-
-                    cudaMemcpy(d_r_buf, (void*)h_r_buf, size*sizeof(unsigned char), cudaMemcpyHostToDevice);
-#else
+                    o_s_buf.copyTo(s_buf, size, 0);
+#endif
                     MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, iRank, 1, comm, MPI_STATUS_IGNORE));
                     MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, iRank, 1, comm));
+#ifdef PP_GPU_THROUGH_CPU
+                    o_r_buf.copyFrom(r_buf, size, 0);
 #endif
 
                 }
@@ -310,17 +292,6 @@ static void multi_latency_paul(int writeToFile, MPI_Comm comm) {
                 latency = (t_end - t_start) * 1.0e6 / (2.0 * options.iterations);
 
             } // all other ranks are idle
-
-#ifdef PP_GPU_THROUGH_CPU
-            delete[] h_s_buf;
-            delete[] h_r_buf;
-
-            cudaMemcpy(s_buf, d_s_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
-            cudaMemcpy(r_buf, d_r_buf, size*sizeof(unsigned char), cudaMemcpyDeviceToDevice);
-
-            cudaFree(d_s_buf);
-            cudaFree(d_r_buf);
-#endif
 
             MPI_CHECK(MPI_Barrier(comm));
 
