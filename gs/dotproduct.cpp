@@ -6,7 +6,7 @@
 #include <cublas_v2.h>
 
 extern "C" { // Begin C Linkage
-int vectorSumTest(int useDevice, occa::device device) {
+int vectorDotProduct(int useDevice, occa::device device) {
 
     int max_message_size = 8e6;
     int count = 100;
@@ -19,10 +19,10 @@ int vectorSumTest(int useDevice, occa::device device) {
 
     if(useDevice) {
 
-        printf("Starting vector sum measurement using cuBlas... ");
+        printf("Starting dot product measurement using cuBlas... ");
         fflush(stdout);
 
-        strftime(buffer,80,"vectorsum_cublas_%Y_%m_%d_%R.txt", timeinfo);
+        strftime(buffer,80,"dotproduct_cublas_%Y_%m_%d_%R.txt", timeinfo);
         FILE *fp = fopen(buffer, "w");
         fprintf(fp, "%-10s %-10s %-10s\n", "words", "loops", "timing");
         fflush(fp);
@@ -35,17 +35,19 @@ int vectorSumTest(int useDevice, occa::device device) {
 
         for(int size = 1, multiplier = 1; size < max_message_size; multiplier*=(size%(multiplier*10)==0 ? 10 : 1), size += multiplier) {
 
-            double *d_buf;
-            cudaMalloc((void**)&d_buf, size*sizeof(double));
-            cudaMemset(d_buf, 0, size*sizeof(double));
+            double *d_buf1, *d_buf2;
+            cudaMalloc((void**)&d_buf1, size*sizeof(double));
+            cudaMalloc((void**)&d_buf2, size*sizeof(double));
+            cudaMemset(d_buf1, 0, size*sizeof(double));
+            cudaMemset(d_buf2, 0, size*sizeof(double));
 
             auto t_start = std::chrono::steady_clock::now();
 
             for(int c = 0; c < count; ++c) {
                 double result = 0;
-                cublasDasum(cublas, size, d_buf, 1, &result);
+                cublasDdot(cublas, size, d_buf1, 1, d_buf2, 1, &result);
                 if(result != 0) {
-                    printf("device array sum failed: %d\n", result);
+                    printf("device dot product failed: %d\n", result);
                     fflush(stdout);
                 }
             }
@@ -56,7 +58,8 @@ int vectorSumTest(int useDevice, occa::device device) {
 
             fprintf(fp, "%-10d %-10d %-10f\n", size, count, timing/(double)count);
 
-            cudaFree(&d_buf);
+            cudaFree(&d_buf1);
+            cudaFree(&d_buf2);
 
         }
 
@@ -70,24 +73,26 @@ int vectorSumTest(int useDevice, occa::device device) {
         printf("Starting vector sum measurement on host (simple loop)... ");
         fflush(stdout);
 
-        strftime(buffer,80,"vectorsum_host_%Y_%m_%d_%R.txt", timeinfo);
+        strftime(buffer,80,"dotproduct_host_%Y_%m_%d_%R.txt", timeinfo);
         FILE *fp = fopen(buffer, "w");
         fprintf(fp, "%-10s %-10s %-10s\n", "words", "loops", "timing");
         fflush(fp);
 
         for(int size = 1, multiplier = 1; size < max_message_size; multiplier*=(size%(multiplier*10)==0 ? 10 : 1), size += multiplier) {
 
-            double *h_buf = (double*) malloc(size*sizeof(double));
-            memset(h_buf, 0, size*sizeof(double));
+            double *h_buf1 = (double*) malloc(size*sizeof(double));
+            double *h_buf2 = (double*) malloc(size*sizeof(double));
+            memset(h_buf1, 0, size*sizeof(double));
+            memset(h_buf2, 0, size*sizeof(double));
 
             auto t_start = std::chrono::steady_clock::now();
 
             for(int c = 0; c < count; ++c) {
                 double result = 0;
                 for(int i = 0; i < size; ++i)
-                    result += fabs(h_buf[i]);
+                    result += h_buf1[i]*h_buf2[i];
                 if(result != 0) {
-                    printf("host array sum failed: %d\n", result);
+                    printf("host dot product failed: %d\n", result);
                     fflush(stdout);
                 }
 
@@ -99,7 +104,8 @@ int vectorSumTest(int useDevice, occa::device device) {
 
             fprintf(fp, "%-10d %-10d %-10f\n", size, count, timing/(double)count);
 
-            free(h_buf);
+            free(h_buf1);
+            free(h_buf2);
 
         }
 

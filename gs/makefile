@@ -28,7 +28,7 @@ $(OGSDIR)/ogs.hpp
 AOBJS    = \
 ./ping_pong.o \
 ./memory_copy.o \
-./vectorsum.o \
+./dotproduct.o \
 ./mygs.o \
 ./main.o
 
