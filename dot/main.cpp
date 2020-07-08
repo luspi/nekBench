@@ -170,23 +170,25 @@ int main(int argc, char **argv){
 
   int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
 
+  double *h_buf1 = drandAlloc(vecLen);
+  double *h_buf2 = drandAlloc(vecLen);
+  double *h_scal = drandAlloc(vecLen);
+
   double *d_buf1, *d_buf2, *d_scal;
   cudaMalloc((void**)&d_buf1, vecLen*sizeof(double));
   cudaMalloc((void**)&d_buf2, vecLen*sizeof(double));
   cudaMalloc((void**)&d_scal, vecLen*sizeof(double));
-  cudaMemset(d_buf1, 0, vecLen*sizeof(double));
-  cudaMemset(d_buf2, 0, vecLen*sizeof(double));
-  cudaMemset(d_scal, 0, vecLen*sizeof(double));
+  cudaMemcpy(d_buf1, h_buf1, vecLen*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_buf2, h_buf2, vecLen*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_scal, h_scal, vecLen*sizeof(double), cudaMemcpyHostToDevice);
 
 #elif defined TEST_CLOOP
 
   int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
 
-  double *buf1 = new double[vecLen]{};
-  double *buf2 = new double[vecLen]{};
-  double *scal = new double[vecLen]{};
-  for(int i = 0; i < vecLen; ++i)
-    scal[i] = 1;
+  double *buf1 = drandAlloc(vecLen);
+  double *buf2 = drandAlloc(vecLen);
+  double *scal = drandAlloc(vecLen);
 
 #else
 
@@ -219,9 +221,11 @@ int main(int argc, char **argv){
 #ifdef TEST_CUBLAS
   cudaFree(d_buf1);
   cudaFree(d_buf2);
+  cudaFree(d_scal);
 #elif defined TEST_CLOOP
-  delete[] buf1;
-  delete[] buf2;
+  free(buf1);
+  free(buf2);
+  free(scal);
 #else
   device.finish();
 #endif
