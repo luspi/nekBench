@@ -8,11 +8,16 @@
 #include "occa.hpp"
 #include "meshBasis.hpp"
 #include "kernelHelper.cpp"
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+#include <cublas_v2.h>
 
 occa::memory o_tmp;
 occa::memory o_tmp2;
 dfloat *tmp;
 static occa::kernel kernel;
+
+// #define TEST_CUBLAS
 
 dfloat *drandAlloc(int N){
 
@@ -143,25 +148,52 @@ int main(int argc, char **argv){
   if(Nblock < 1) Nblock = 1;
   if(rank == 0) std::cout << "blockSize: " << Nblock << "\n";
 
+#ifdef TEST_CUBLAS
+
+  cublasHandle_t cublas;
+
+  cublasStatus_t stat = cublasCreate(&cublas);
+  if(stat != CUBLAS_STATUS_SUCCESS)
+      printf("CUBLAS initialization failed!\n");
+
+  int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
+
+  double *d_buf1, *d_buf2;
+  cudaMalloc((void**)&d_buf1, vecLen*sizeof(double));
+  cudaMalloc((void**)&d_buf2, vecLen*sizeof(double));
+  cudaMemset(d_buf1, 0, vecLen*sizeof(double));
+  cudaMemset(d_buf2, 0, vecLen*sizeof(double));
+
+#else
+
   tmp = drandAlloc(Nblock);
   o_tmp = device.malloc(Nblock*sizeof(dfloat), tmp);
   o_tmp2 = device.malloc(Nblock*sizeof(dfloat), tmp);
 
   // run kernel
-  weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);   
+  weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
   device.finish();
+#endif
+
   MPI_Barrier(MPI_COMM_WORLD);
   const double start = MPI_Wtime();
   for(int test=0;test<Ntests;++test) {
-    weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);   
+#ifdef TEST_CUBLAS
+    double result = 0;
+    cublasDdot(cublas, vecLen, d_buf1, 1, d_buf2, 1, &result);
+#else
+    weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
+#endif
   }
+#ifndef TEST_CUBLAS
   device.finish();
+#endif
   MPI_Barrier(MPI_COMM_WORLD);
   const double elapsed = (MPI_Wtime() - start)/Ntests;
 
   // print statistics
   double GDOFPerSecond = size*(Nelements*N*N*N)/elapsed/1.e9;
-  const long long bytesMoved = 3*Np; 
+  const long long bytesMoved = 3*Np;
   const double bw = (size*bytesMoved*Nelements/elapsed)/1.e9;
   //  double flopCount = ?;
   //  double gflops = (size*flopCount*Nelements/elapsed)/1.e9;
