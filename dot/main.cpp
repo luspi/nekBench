@@ -18,6 +18,7 @@ dfloat *tmp;
 static occa::kernel kernel;
 
 // #define TEST_CUBLAS
+// #define TEST_CLOOP
 
 dfloat *drandAlloc(int N){
 
@@ -42,17 +43,28 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
 //  }
 //  else{
 //    o_tmp.copyTo(tmp);
-//  }    
+//  }
 
   o_tmp.copyTo(tmp);
   dfloat wab = 0;
   for(dlong n=0;n<Nblock;++n) wab += tmp[n];
 
   if(global) MPI_Allreduce(&wab, &globalwab, 1, MPI_DFLOAT, MPI_SUM, MPI_COMM_WORLD);
-   
+
   return globalwab;
 }
 
+#ifdef TEST_CLOOP
+double cloopInnerProduct(int N, double *a, double *b) {
+
+  double result = 0;
+  for(int i = 0; i < N; ++i)
+    result += a[i]*b[i];
+
+  return result;
+
+}
+#endif
 
 int main(int argc, char **argv){
 
@@ -164,6 +176,13 @@ int main(int argc, char **argv){
   cudaMemset(d_buf1, 0, vecLen*sizeof(double));
   cudaMemset(d_buf2, 0, vecLen*sizeof(double));
 
+#elif defined TEST_CLOOP
+
+  int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
+
+  double *buf1 = new double[vecLen]{};
+  double *buf2 = new double[vecLen]{};
+
 #else
 
   tmp = drandAlloc(Nblock);
@@ -181,11 +200,19 @@ int main(int argc, char **argv){
 #ifdef TEST_CUBLAS
     double result = 0;
     cublasDdot(cublas, vecLen, d_buf1, 1, d_buf2, 1, &result);
+#elif defined TEST_CLOOP
+    cloopInnerProduct(vecLen, buf1, buf2);
 #else
     weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
 #endif
   }
-#ifndef TEST_CUBLAS
+#ifdef TEST_CUBLAS
+  cudaFree(d_buf1);
+  cudaFree(d_buf2);
+#elif defined TEST_CLOOP
+  delete[] buf1;
+  delete[] buf2;
+#else
   device.finish();
 #endif
   MPI_Barrier(MPI_COMM_WORLD);
