@@ -55,11 +55,11 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
 }
 
 #ifdef TEST_CLOOP
-double cloopInnerProduct(int N, double *a, double *b) {
+double cloopInnerProduct(int N, double *a, double *b, double *w) {
 
   double result = 0;
   for(int i = 0; i < N; ++i)
-    result += a[i]*b[i];
+    result += w[i]*a[i]*b[i];
 
   return result;
 
@@ -170,11 +170,13 @@ int main(int argc, char **argv){
 
   int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
 
-  double *d_buf1, *d_buf2;
+  double *d_buf1, *d_buf2, *d_scal;
   cudaMalloc((void**)&d_buf1, vecLen*sizeof(double));
   cudaMalloc((void**)&d_buf2, vecLen*sizeof(double));
+  cudaMalloc((void**)&d_scal, vecLen*sizeof(double));
   cudaMemset(d_buf1, 0, vecLen*sizeof(double));
   cudaMemset(d_buf2, 0, vecLen*sizeof(double));
+  cudaMemset(d_scal, 0, vecLen*sizeof(double));
 
 #elif defined TEST_CLOOP
 
@@ -182,6 +184,9 @@ int main(int argc, char **argv){
 
   double *buf1 = new double[vecLen]{};
   double *buf2 = new double[vecLen]{};
+  double *scal = new double[vecLen]{};
+  for(int i = 0; i < vecLen; ++i)
+    scal[i] = 1;
 
 #else
 
@@ -199,9 +204,14 @@ int main(int argc, char **argv){
   for(int test=0;test<Ntests;++test) {
 #ifdef TEST_CUBLAS
     double result = 0;
+    cublasDdgmm(cublas, CUBLAS_SIDE_RIGHT,
+                vecLen, 1,
+                d_buf1, vecLen,
+                d_scal, 1,
+                d_buf1, vecLen);
     cublasDdot(cublas, vecLen, d_buf1, 1, d_buf2, 1, &result);
 #elif defined TEST_CLOOP
-    cloopInnerProduct(vecLen, buf1, buf2);
+    cloopInnerProduct(vecLen, buf1, buf2, scal);
 #else
     weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
 #endif
