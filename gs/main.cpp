@@ -9,6 +9,7 @@
 #include "mesh.h"
 #include "timer.hpp"
 
+#include "allreduce.h"
 #include "ping_pong.h"
 
 #include "mygs.h"
@@ -112,6 +113,8 @@ int main(int argc, char **argv)
   timer::reset();
 
   if(mesh->rank == 0) cout << "starting measurement ...\n"; fflush(stdout);
+
+  allReduceTest(enabledGPUMPI, mesh->device);
 
   // ping pong
   mesh->device.finish();

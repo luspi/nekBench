@@ -27,6 +27,7 @@ $(OGSDIR)/ogs.hpp
 # list of objects to be compiled
 AOBJS    = \
 ./ping_pong.o \
+./allreduce.o \
 ./mygs.o \
 ./main.o
 
