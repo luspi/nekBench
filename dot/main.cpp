@@ -49,7 +49,10 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
   dfloat wab = 0;
   for(dlong n=0;n<Nblock;++n) wab += tmp[n];
 
-  if(global) MPI_Allreduce(&wab, &globalwab, 1, MPI_DFLOAT, MPI_SUM, MPI_COMM_WORLD);
+  if(global)
+      MPI_Allreduce(&wab, &globalwab, 1, MPI_DFLOAT, MPI_SUM, MPI_COMM_WORLD);
+  else
+      return wab;
 
   return globalwab;
 }
@@ -168,29 +171,7 @@ int main(int argc, char **argv){
   if(stat != CUBLAS_STATUS_SUCCESS)
       printf("CUBLAS initialization failed!\n");
 
-  int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
-
-  double *h_buf1 = drandAlloc(vecLen);
-  double *h_buf2 = drandAlloc(vecLen);
-  double *h_scal = drandAlloc(vecLen);
-
-  double *d_buf1, *d_buf2, *d_scal;
-  cudaMalloc((void**)&d_buf1, vecLen*sizeof(double));
-  cudaMalloc((void**)&d_buf2, vecLen*sizeof(double));
-  cudaMalloc((void**)&d_scal, vecLen*sizeof(double));
-  cudaMemcpy(d_buf1, h_buf1, vecLen*sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_buf2, h_buf2, vecLen*sizeof(double), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_scal, h_scal, vecLen*sizeof(double), cudaMemcpyHostToDevice);
-
-#elif defined TEST_CLOOP
-
-  int vecLen = (N+1)*(N+1)*(N+1)*Nelements;
-
-  double *buf1 = drandAlloc(vecLen);
-  double *buf2 = drandAlloc(vecLen);
-  double *scal = drandAlloc(vecLen);
-
-#else
+#elif not defined TEST_CLOOP
 
   tmp = drandAlloc(Nblock);
   o_tmp = device.malloc(Nblock*sizeof(dfloat), tmp);
@@ -207,30 +188,20 @@ int main(int argc, char **argv){
 #ifdef TEST_CUBLAS
     double result = 0;
     cublasDdgmm(cublas, CUBLAS_SIDE_RIGHT,
-                vecLen, 1,
-                d_buf1, vecLen,
-                d_scal, 1,
-                d_buf1, vecLen);
-    cublasDdot(cublas, vecLen, d_buf1, 1, d_buf2, 1, &result);
+                Nelements*Np, 1,
+                (double*)o_a.ptr(), Nelements*Np,
+                (double*)o_c.ptr(), 1,
+                (double*)o_a.ptr(), Nelements*Np);
+    cublasDdot(cublas, Nelements*Np, (double*)o_a.ptr(), 1, (double*)o_b.ptr(), 1, &result);
 #elif defined TEST_CLOOP
-    cloopInnerProduct(vecLen, buf1, buf2, scal);
+    cloopInnerProduct(Nelements*Np, (double*)o_a.ptr(), (double*)o_b.ptr(), (double*)o_c.ptr());
 #else
     weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
 #endif
   }
-#ifdef TEST_CUBLAS
-  cudaFree(d_buf1);
-  cudaFree(d_buf2);
-  cudaFree(d_scal);
-#elif defined TEST_CLOOP
-  free(buf1);
-  free(buf2);
-  free(scal);
-#else
-  device.finish();
-#endif
   MPI_Barrier(MPI_COMM_WORLD);
   const double elapsed = (MPI_Wtime() - start)/Ntests;
+  device.finish();
 
   // print statistics
   double GDOFPerSecond = size*(Nelements*N*N*N)/elapsed/1.e9;
