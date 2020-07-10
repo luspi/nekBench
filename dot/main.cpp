@@ -17,9 +17,6 @@ occa::memory o_tmp2;
 dfloat *tmp;
 static occa::kernel kernel;
 
-// #define TEST_CUBLAS
-// #define TEST_CLOOP
-
 dfloat *drandAlloc(int N){
 
   dfloat *v = (dfloat*) calloc(N, sizeof(dfloat));
@@ -57,7 +54,6 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
   return globalwab;
 }
 
-#ifdef TEST_CLOOP
 double cloopInnerProduct(int N, double *a, double *b, double *w) {
 
   double result = 0;
@@ -67,7 +63,6 @@ double cloopInnerProduct(int N, double *a, double *b, double *w) {
   return result;
 
 }
-#endif
 
 int main(int argc, char **argv){
 
@@ -110,117 +105,207 @@ int main(int argc, char **argv){
 
   const int Nq = N+1;
   const int Np = Nq*Nq*Nq;
-  
+
   const dlong offset = Nelements*Np;
 
   // build device
-  occa::device device;
-  char deviceConfig[BUFSIZ];
+  occa::device deviceSerial;
+  occa::device deviceCuda;
+  char deviceConfigSerial[BUFSIZ];
+  char deviceConfigCuda[BUFSIZ];
 
-  if(strstr(threadModel.c_str(), "CUDA")){
-    sprintf(deviceConfig, "mode: 'CUDA', device_id: %d",deviceId);
-  }
-  else if(strstr(threadModel.c_str(),  "HIP")){
-    sprintf(deviceConfig, "mode: 'HIP', device_id: %d",deviceId);
-  }
-  else if(strstr(threadModel.c_str(),  "OPENCL")){
-    sprintf(deviceConfig, "mode: 'OpenCL', device_id: %d, platform_id: %d", deviceId, platformId);
-  }
-  else if(strstr(threadModel.c_str(),  "OPENMP")){
-    sprintf(deviceConfig, "mode: 'OpenMP' ");
-  }
-  else{
-    sprintf(deviceConfig, "mode: 'Serial' ");
-    omp_set_num_threads(1);
-  }
+  omp_set_num_threads(1);
+  sprintf(deviceConfigSerial, "mode: 'Serial'");
+  sprintf(deviceConfigCuda, "mode: 'CUDA', device_id: %d",deviceId);
 
   int Nthreads =  omp_get_max_threads();
-  std::string deviceConfigString(deviceConfig);
-  device.setup(deviceConfigString);
+
+  std::string deviceConfigStringSerial(deviceConfigSerial);
+  std::string deviceConfigStringCuda(deviceConfigCuda);
+
+  deviceSerial.setup(deviceConfigStringSerial);
+  deviceCuda.setup(deviceConfigStringCuda);
+
   occa::env::OCCA_MEM_BYTE_ALIGN = USE_OCCA_MEM_BYTE_ALIGN;
-
-  if(rank==0) {
-   std::cout << "word size: " << sizeof(dfloat) << " bytes\n";
-   std::cout << "active occa mode: " << device.mode() << "\n";
-  }
-
-  // load kernel
-  std::string kernelName = "weightedInnerProduct2";
-  const int kernelVersion = 0; // hardwired for now
-  kernelName += "_v" + std::to_string(kernelVersion);
-  kernel = loadKernel(device, threadModel, arch, kernelName, N, Nelements, blockSize);
 
   // populate device arrays
   dfloat *a = drandAlloc(Np*Nelements);
   dfloat *b = drandAlloc(Np*Nelements);
   dfloat *c = drandAlloc(Np*Nelements);
 
-  occa::memory o_a = device.malloc(Np*Nelements*sizeof(dfloat), a);
-  occa::memory o_b = device.malloc(Np*Nelements*sizeof(dfloat), a);
-  occa::memory o_c = device.malloc(Np*Nelements*sizeof(dfloat), a);
 
-  int Nblock  = ((Nelements*Np)+blockSize-1)/blockSize;
-  if(Nblock < 1) Nblock = 1;
-  if(rank == 0) std::cout << "blockSize: " << Nblock << "\n";
+  for(int type = 0; type < 4; ++type) {
 
-#ifdef TEST_CUBLAS
+    int allresult[Ntests]{};
+    double elapsedTime;
 
-  cublasHandle_t cublas;
+    // occa kernel (Serial)
+    if(type == 0) {
 
-  cublasStatus_t stat = cublasCreate(&cublas);
-  if(stat != CUBLAS_STATUS_SUCCESS)
-      printf("CUBLAS initialization failed!\n");
+      if(rank==0) {
+        std::cout << "word size: " << sizeof(dfloat) << " bytes\n";
+        std::cout << "active occa mode: " << deviceSerial.mode() << "\n";
+      }
 
-#elif not defined TEST_CLOOP
+      // load kernel
+      std::string kernelName = "weightedInnerProduct2";
+      const int kernelVersion = 0; // hardwired for now
+      kernelName += "_v" + std::to_string(kernelVersion);
+      kernel = loadKernel(deviceSerial, threadModel, arch, kernelName, N, Nelements, blockSize);
 
-  tmp = drandAlloc(Nblock);
-  o_tmp = device.malloc(Nblock*sizeof(dfloat), tmp);
-  o_tmp2 = device.malloc(Nblock*sizeof(dfloat), tmp);
+      occa::memory o_a = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_b = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_c = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
 
-  // run kernel
-  weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
-  device.finish();
-#endif
+      int Nblock  = ((Nelements*Np)+blockSize-1)/blockSize;
+      if(Nblock < 1) Nblock = 1;
+      if(rank == 0) std::cout << "blockSize: " << Nblock << "\n";
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  const double start = MPI_Wtime();
-  for(int test=0;test<Ntests;++test) {
-#ifdef TEST_CUBLAS
-    double result = 0;
-    cublasDdgmm(cublas, CUBLAS_SIDE_RIGHT,
-                Nelements*Np, 1,
-                (double*)o_a.ptr(), Nelements*Np,
-                (double*)o_c.ptr(), 1,
-                (double*)o_a.ptr(), Nelements*Np);
-    cublasDdot(cublas, Nelements*Np, (double*)o_a.ptr(), 1, (double*)o_b.ptr(), 1, &result);
-#elif defined TEST_CLOOP
-    cloopInnerProduct(Nelements*Np, (double*)o_a.ptr(), (double*)o_b.ptr(), (double*)o_c.ptr());
-#else
-    weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
-#endif
+      tmp = drandAlloc(Nblock);
+      o_tmp = deviceSerial.malloc(Nblock*sizeof(dfloat), tmp);
+      o_tmp2 = deviceSerial.malloc(Nblock*sizeof(dfloat), tmp);
+
+      // run kernel
+      weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
+      deviceSerial.finish();
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      const double start = MPI_Wtime();
+
+      for(int test=0;test<Ntests;++test) {
+          allresult[test] = weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      elapsedTime = (MPI_Wtime() - start)/Ntests;
+      deviceSerial.finish();
+
+    // occa kernel (CUDA)
+    } else  if(type == 1) {
+
+      if(rank==0) {
+        std::cout << "word size: " << sizeof(dfloat) << " bytes\n";
+        std::cout << "active occa mode: " << deviceCuda.mode() << "\n";
+      }
+
+      // load kernel
+      std::string kernelName = "weightedInnerProduct2";
+      const int kernelVersion = 0; // hardwired for now
+      kernelName += "_v" + std::to_string(kernelVersion);
+      kernel = loadKernel(deviceCuda, threadModel, arch, kernelName, N, Nelements, blockSize);
+
+      occa::memory o_a = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_b = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_c = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+
+      int Nblock  = ((Nelements*Np)+blockSize-1)/blockSize;
+      if(Nblock < 1) Nblock = 1;
+      if(rank == 0) std::cout << "blockSize: " << Nblock << "\n";
+
+      tmp = drandAlloc(Nblock);
+      o_tmp = deviceCuda.malloc(Nblock*sizeof(dfloat), tmp);
+      o_tmp2 = deviceCuda.malloc(Nblock*sizeof(dfloat), tmp);
+
+      // run kernel
+      weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
+      deviceCuda.finish();
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      const double start = MPI_Wtime();
+
+      for(int test=0;test<Ntests;++test) {
+          allresult[test] = weightedInnerProduct(Nelements*Np, 0, Nblock, o_c, o_a, o_b, global);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      elapsedTime = (MPI_Wtime() - start)/Ntests;
+      deviceCuda.finish();
+
+    // cuBlas
+    } else if(type == 2) {
+
+      occa::memory o_a = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_b = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_c = deviceCuda.malloc(Np*Nelements*sizeof(dfloat), a);
+
+      if(rank==0) {
+        std::cout << "word size: " << sizeof(dfloat) << " bytes\n";
+        std::cout << "mode: cuBlas" << std::endl;
+      }
+
+      cublasHandle_t cublas;
+
+      cublasStatus_t stat = cublasCreate(&cublas);
+      if(stat != CUBLAS_STATUS_SUCCESS)
+          printf("CUBLAS initialization failed!\n");
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      const double start = MPI_Wtime();
+
+      for(int test=0;test<Ntests;++test) {
+        double result = 0;
+
+        double alpha = 1.0;
+        double beta = 0.0;
+        cublasDsbmv(cublas, CUBLAS_FILL_MODE_LOWER, size, 0, &alpha, (double*)o_c.ptr(), 1, (double*)o_a.ptr(), 1, &beta, (double*)o_a.ptr(), 1);
+        cublasDdot(cublas, Nelements*Np, (double*)o_a.ptr(), 1, (double*)o_b.ptr(), 1, &result);
+        allresult[test] = result;
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      elapsedTime = (MPI_Wtime() - start)/Ntests;
+      deviceCuda.finish();
+
+    // C loop
+    } else if(type == 3) {
+
+      occa::memory o_a = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_b = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
+      occa::memory o_c = deviceSerial.malloc(Np*Nelements*sizeof(dfloat), a);
+
+      if(rank==0) {
+        std::cout << "word size: " << sizeof(dfloat) << " bytes\n";
+        std::cout << "mode: C loop" << std::endl;
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      const double start = MPI_Wtime();
+
+      for(int test=0;test<Ntests;++test) {
+        allresult[test] = cloopInnerProduct(Nelements*Np, (double*)o_a.ptr(), (double*)o_b.ptr(), (double*)o_c.ptr());
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      elapsedTime = (MPI_Wtime() - start)/Ntests;
+      deviceSerial.finish();
+
+    }
+
+    double allsum = 0;
+    for(int i = 0; i < Ntests; ++i)
+        allsum += allresult[i];
+    std::cout << "sum of all results = " << allsum << std::endl;
+
+    // print statistics
+    double GDOFPerSecond = size*(Nelements*N*N*N)/elapsedTime/1.e9;
+    const long long bytesMoved = 3*Np;
+    const double bw = (size*bytesMoved*Nelements/elapsedTime)/1.e9;
+    //  double flopCount = ?;
+    //  double gflops = (size*flopCount*Nelements/elapsed)/1.e9;
+    if(rank==0) {
+      std::cout << "MPItasks=" << size
+                << " OMPthreads=" << Nthreads
+                << " NRepetitions=" << Ntests
+                << " N=" << N
+                << " Nelements=" << size*Nelements
+                << " blockSize=" << blockSize
+                << " elapsed time=" << elapsedTime
+                << " GDOF/s=" << GDOFPerSecond
+                << " GB/s=" << bw
+                << "\n\n";
+    }
+
   }
-  MPI_Barrier(MPI_COMM_WORLD);
-  const double elapsed = (MPI_Wtime() - start)/Ntests;
-  device.finish();
-
-  // print statistics
-  double GDOFPerSecond = size*(Nelements*N*N*N)/elapsed/1.e9;
-  const long long bytesMoved = 3*Np;
-  const double bw = (size*bytesMoved*Nelements/elapsed)/1.e9;
-  //  double flopCount = ?;
-  //  double gflops = (size*flopCount*Nelements/elapsed)/1.e9;
-  if(rank==0) {
-    std::cout << "MPItasks=" << size
-              << " OMPthreads=" << Nthreads
-              << " NRepetitions=" << Ntests
-              << " N=" << N
-              << " Nelements=" << size*Nelements
-              << " blockSize=" << blockSize
-              << " elapsed time=" << elapsed
-              << " GDOF/s=" << GDOFPerSecond
-              << " GB/s=" << bw
-              << "\n";
-  } 
 
   MPI_Finalize();
   exit(0);
