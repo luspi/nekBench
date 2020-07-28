@@ -210,6 +210,13 @@ int BPPCG   (BP_t* BP,
              const dfloat tol,
              const int MAXIT,
              double* opElapsed);
+int BPCheb  (BP_t* BP,
+             occa::memory &o_lambda,
+             occa::memory &o_r,
+             occa::memory &o_x,
+             const dfloat tol,
+             const int MAXIT,
+             double* opElapsed);
 
 void BPScaledAdd(BP_t* BP, dfloat alpha, occa::memory &o_a, dfloat beta, occa::memory &o_b);
 

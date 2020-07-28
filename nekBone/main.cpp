@@ -26,6 +26,8 @@ int solve(BP_t* BP,
 
   if(options.compareArgs("KRYLOV SOLVER", "PCG"))
     Niter = BPPCG(BP, o_lambda, o_r, o_x, tol, maxIter, opElapsed);
+  else if(options.compareArgs("KRYLOV SOLVER", "CHEBYSHEV"))
+    Niter = BPCheb(BP, o_lambda, o_r, o_x, tol, maxIter, opElapsed);
 
   if(BP->allNeumann)
     BPZeroMean(BP, o_x);

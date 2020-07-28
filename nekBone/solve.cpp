@@ -129,6 +129,151 @@ int BPPCG(BP_t* BP, occa::memory &o_lambda,
   return iter - 1;
 }
 
+int BPCheb(BP_t* BP, occa::memory &o_lambda,
+           occa::memory &o_r, occa::memory &o_x,
+           const dfloat tol, const int MAXIT,
+           double* opElapsed)
+{
+
+  mesh_t* mesh = BP->mesh;
+  setupAide options = BP->options;
+
+  int fixedIterationCountFlag = 0;
+  int flexible = options.compareArgs("KRYLOV SOLVER", "FLEXIBLE");
+  int verbose = options.compareArgs("VERBOSE", "TRUE");
+
+  if(options.compareArgs("FIXED ITERATION COUNT", "TRUE"))
+    fixedIterationCountFlag = 1;
+
+  int iter;
+
+  dfloat lMax, lMin;
+
+  {
+    // use CG to approximate eigenvalues
+
+    /*aux variables */
+    occa::memory &o_p   = BP->o_solveWorkspace[0];
+    occa::memory &o_z   = BP->o_solveWorkspace[1];
+    occa::memory &o_Ap  = BP->o_solveWorkspace[2];
+    occa::memory &o_Ax  = BP->o_solveWorkspace[3];
+
+    // compute A*x
+    dfloat pAp = AxOperator(BP, o_lambda, o_x, o_Ax, dfloatString);
+
+    // subtract r = b - A*x
+    BPScaledAdd(BP, -1.f, o_Ax, 1.f, o_r);
+
+    if(BP->profiling) timer::tic("preco");
+    if(options.compareArgs("PRECONDITIONER", "JACOBI")) updateJacobi(BP, o_lambda, BP->o_invDiagA);
+    if(BP->profiling) timer::toc("preco");
+
+    // register scalars
+    dfloat rdotz1 = 1;
+    dfloat rdotz2 = 0;
+
+    int PREMAXIT = 5;
+
+    /*****************************************************************************/
+
+    for(iter = 1; iter <= PREMAXIT; ++iter) {
+
+      // z = Precon^{-1} r
+      BPPreconditioner(BP, o_lambda, o_r, o_z);
+
+      rdotz2 = rdotz1;
+
+      // r.z
+      rdotz1 = BPWeightedInnerProduct(BP, BP->o_invDegree, o_r, o_z);
+
+      lMin = (iter == 1) ? 0:rdotz1 / rdotz2;
+
+      // p = z + lMin*p
+      BPScaledAdd(BP, 1.f, o_z, lMin, o_p);
+
+      // Ap and p.Ap
+      pAp = AxOperator(BP, o_lambda, o_p, o_Ap, dfloatString);
+
+      // lMax = r.z/p.Ap
+      lMax = rdotz1 / pAp;
+
+    }
+
+  }
+
+  /*****************************************************************************/
+
+  /*aux variables */
+  occa::memory &o_p   = BP->o_solveWorkspace[0];
+  occa::memory &o_z   = BP->o_solveWorkspace[1];
+  occa::memory &o_Ap  = BP->o_solveWorkspace[2];
+  occa::memory &o_Ax  = BP->o_solveWorkspace[3];
+
+  // compute A*x
+  dfloat pAp = AxOperator(BP, o_lambda, o_x, o_Ax, dfloatString);
+
+  // subtract r = b - A*x
+  BPScaledAdd(BP, -1.f, o_Ax, 1.f, o_r);
+
+  dfloat n0 = BPWeightedNorm2(BP, BP->o_invDegree, o_r);
+
+  if(BP->profiling) timer::tic("preco");
+  if(options.compareArgs("PRECONDITIONER", "JACOBI")) updateJacobi(BP, o_lambda, BP->o_invDiagA);
+  if(BP->profiling) timer::toc("preco");
+
+  // now initialized
+  dfloat alpha = 0, beta = 0;
+  dfloat d = (lMax+lMin)/2.0;
+  dfloat c = (lMax-lMin)/2.0;
+
+  const dfloat TOL =  mymax(tol * tol * n0, tol * tol);
+
+  for(iter = 1; iter <= MAXIT; ++iter) {
+
+    // z = Precon^{-1} r
+    BPPreconditioner(BP, o_lambda, o_r, o_z);
+
+    if(iter == 1) {
+      o_p = o_z;
+      alpha = 1.0/d;
+    } else if(iter == 2) {
+      beta = 0.5 * pow(c*alpha, 2);
+      alpha = 1.0/(d-beta/alpha);
+      // p = z + beta * p;
+      BPScaledAdd(BP, 1.f, o_z, beta, o_p);
+    } else {
+      beta = pow(c*alpha/2.0, 2);
+      alpha = 1/(d-beta/alpha);
+      // p = z + beta * p;
+      BPScaledAdd(BP, 1.f, o_z, beta, o_p);
+    }
+
+    // x = x + alpha * p;
+    BPScaledAdd(BP, alpha, o_p, 1.f, o_x);
+
+    //  x <= x + alpha*p
+    //  r <= r - alpha*A*p
+    //  dot(r,r)
+#if 0
+    dfloat rdotr = BPUpdateOverlapPCG(BP, o_p, o_Ap, alpha, o_x, o_r);
+#else
+    dfloat rdotr = BPUpdatePCG(BP, o_p, o_Ap, alpha, o_x, o_r);
+#endif
+
+    if (verbose && (mesh->rank == 0)) {
+      if(rdotr < 0)
+        printf("WARNING CG: rdotr = %17.15lf\n", rdotr);
+
+      printf("CG: it %d r norm %12.12le alpha = %le \n", iter, sqrt(rdotr), alpha);
+    }
+
+    if(rdotr <= TOL && !fixedIterationCountFlag) break;
+
+  }
+
+  return iter - 1;
+}
+
 void BPZeroMean(BP_t* BP, occa::memory &o_q)
 {
   dfloat qmeanLocal;
@@ -329,14 +474,15 @@ dfloat AxOperator(BP_t* BP, occa::memory &o_lambda, occa::memory &o_q, occa::mem
     //ogsGatherScatterStart(o_Aq, ogsDfloat, ogsAdd, ogs);
     oogs::start(o_Aq, ogsDfloat, ogsAdd, ogs);
     if(BP->profiling) timer::tic("Ax2");
-    kernel(mesh->NlocalGatherElements,
-           fieldOffset,
-           mesh->o_localGatherElementList,
-           mesh->o_ggeo,
-           mesh->o_D,
-           o_lambda,
-           o_q,
-           o_Aq);
+    if(mesh->NlocalGatherElements)
+      kernel(mesh->NlocalGatherElements,
+            fieldOffset,
+            mesh->o_localGatherElementList,
+            mesh->o_ggeo,
+            mesh->o_D,
+            o_lambda,
+            o_q,
+            o_Aq);
     if(BP->profiling) timer::toc("Ax2");
     //ogsGatherScatterFinish(o_Aq, ogsDfloat, ogsAdd, ogs);
     oogs::finish(o_Aq, ogsDfloat, ogsAdd, ogs);
