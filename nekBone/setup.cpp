@@ -47,6 +47,13 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options)
     //if(BP->Nfields == 3) BP->BPid = 6;
   }
 
+  if(mesh->rank == 0) {
+    if(options.compareArgs("KRYLOV SOLVER", "PCG"))
+      printf("PCG solver enabled\n");
+    else if(options.compareArgs("KRYLOV SOLVER", "CHEBYSHEV"))
+      printf("Chebyshev solver enabled\n");
+  }
+
   BP->lambda1 = 1.1;
   options.getArgs("LAMBDA", BP->lambda1);
   if(BP->BPid) BP->lambda1 = 0.0;
@@ -366,11 +373,14 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
       BP->updateMultiplePCGKernel =
         mesh->device.buildKernel(fileName.c_str(), "BPMultipleUpdatePCG", props);
 
-      fileName = DBP "/kernel/" + arch + "/updateOverlapPCG.okl"; 
-      BP->updateOverlapPCGKernel =
-        mesh->device.buildKernel(fileName.c_str(), "BPUpdateOverlapPCG", props);
-      BP->updateOverlapMultiplePCGKernel =
-        mesh->device.buildKernel(fileName.c_str(), "BPMultipleUpdateOverlapPCG", props);
+      if(!strstr(threadModel.c_str(),
+                "NATIVE+SERIAL") && !strstr(threadModel.c_str(), "NATIVE+OPENMP")) {
+        fileName = DBP "/kernel/" + arch + "/updateOverlapPCG.okl";
+        BP->updateOverlapPCGKernel =
+          mesh->device.buildKernel(fileName.c_str(), "BPUpdateOverlapPCG", props);
+        BP->updateOverlapMultiplePCGKernel =
+          mesh->device.buildKernel(fileName.c_str(), "BPMultipleUpdateOverlapPCG", props);
+      }
 
       fileName = DBP "/kernel/utils.okl";
       if(strstr(threadModel.c_str(),
