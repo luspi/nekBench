@@ -218,6 +218,13 @@ int BPCheb  (BP_t* BP,
              const int MAXIT,
              double* opElapsed);
 
+void getBoundOnEigenvalues(BP_t* BP,
+                           occa::memory &o_lambda,
+                           occa::memory &o_r,
+                           occa::memory &o_x,
+                           dfloat &lMin,
+                           dfloat &lMax);
+
 void BPScaledAdd(BP_t* BP, dfloat alpha, occa::memory &o_a, dfloat beta, occa::memory &o_b);
 
 dfloat AxOperator(BP_t* BP,

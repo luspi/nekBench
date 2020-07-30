@@ -135,6 +135,9 @@ int BPCheb(BP_t* BP, occa::memory &o_lambda,
            double* opElapsed)
 {
 
+  dfloat lMin, lMax;
+  getBoundOnEigenvalues(BP, o_lambda, o_r, o_x, lMin, lMax);
+
   mesh_t* mesh = BP->mesh;
   setupAide options = BP->options;
 
@@ -146,62 +149,6 @@ int BPCheb(BP_t* BP, occa::memory &o_lambda,
     fixedIterationCountFlag = 1;
 
   int iter;
-
-  dfloat lMax, lMin;
-
-  {
-    // use CG to approximate eigenvalues
-
-    /*aux variables */
-    occa::memory &o_p   = BP->o_solveWorkspace[0];
-    occa::memory &o_z   = BP->o_solveWorkspace[1];
-    occa::memory &o_Ap  = BP->o_solveWorkspace[2];
-    occa::memory &o_Ax  = BP->o_solveWorkspace[3];
-
-    // compute A*x
-    dfloat pAp = AxOperator(BP, o_lambda, o_x, o_Ax, dfloatString);
-
-    // subtract r = b - A*x
-    BPScaledAdd(BP, -1.f, o_Ax, 1.f, o_r);
-
-    if(BP->profiling) timer::tic("preco");
-    if(options.compareArgs("PRECONDITIONER", "JACOBI")) updateJacobi(BP, o_lambda, BP->o_invDiagA);
-    if(BP->profiling) timer::toc("preco");
-
-    // register scalars
-    dfloat rdotz1 = 1;
-    dfloat rdotz2 = 0;
-
-    int PREMAXIT = 5;
-
-    /*****************************************************************************/
-
-    for(iter = 1; iter <= PREMAXIT; ++iter) {
-
-      // z = Precon^{-1} r
-      BPPreconditioner(BP, o_lambda, o_r, o_z);
-
-      rdotz2 = rdotz1;
-
-      // r.z
-      rdotz1 = BPWeightedInnerProduct(BP, BP->o_invDegree, o_r, o_z);
-
-      lMin = (iter == 1) ? 0:rdotz1 / rdotz2;
-
-      // p = z + lMin*p
-      BPScaledAdd(BP, 1.f, o_z, lMin, o_p);
-
-      // Ap and p.Ap
-      pAp = AxOperator(BP, o_lambda, o_p, o_Ap, dfloatString);
-
-      // lMax = r.z/p.Ap
-      lMax = rdotz1 / pAp;
-
-    }
-
-  }
-
-  /*****************************************************************************/
 
   /*aux variables */
   occa::memory &o_p   = BP->o_solveWorkspace[0];
@@ -272,6 +219,86 @@ int BPCheb(BP_t* BP, occa::memory &o_lambda,
   }
 
   return iter - 1;
+}
+
+void getBoundOnEigenvalues(BP_t* BP, occa::memory &o_lambda,
+                           occa::memory &o_r, occa::memory &o_x,
+                           dfloat &lMin, dfloat &lMax) {
+
+  mesh_t* mesh = BP->mesh;
+  setupAide options = BP->options;
+
+  /*aux variables */
+  occa::memory &o_p   = BP->o_solveWorkspace[0];
+  occa::memory &o_z   = BP->o_solveWorkspace[1];
+  occa::memory &o_Ap  = BP->o_solveWorkspace[2];
+  occa::memory &o_Ax  = BP->o_solveWorkspace[3];
+
+  // compute A*x
+  dfloat pAp = AxOperator(BP, o_lambda, o_x, o_Ax, dfloatString);
+
+  // subtract r = b - A*x
+  BPScaledAdd(BP, -1.f, o_Ax, 1.f, o_r);
+
+  // register scalars
+  dfloat rdotz1 = 1;
+  dfloat rdotz2 = 0;
+
+  dfloat alpha, beta;
+
+  dfloat Tkdiag = 0;
+  dfloat Tkupdi = 0;
+  dfloat Tklodi = 0;
+
+  int PREMAXIT = 5;
+
+  lMax = 0;
+  lMin = 999999;
+
+  for(int iter = 1; iter <= PREMAXIT; ++iter) {
+
+    // z = Precon^{-1} r
+    BPPreconditioner(BP, o_lambda, o_r, o_z);
+
+    rdotz2 = rdotz1;
+
+    // r.z
+    rdotz1 = BPWeightedInnerProduct(BP, BP->o_invDegree, o_r, o_z);
+
+    beta = (iter == 1) ? 0:rdotz1 / rdotz2;
+
+    // p = z + beta*p
+    BPScaledAdd(BP, 1.f, o_z, beta, o_p);
+
+    // Ap and p.Ap
+    pAp = AxOperator(BP, o_lambda, o_p, o_Ap, dfloatString);
+
+    // alpha = r.z/p.Ap
+    alpha = rdotz1 / pAp;
+
+    //  x <= x + alpha*p
+    //  r <= r - alpha*A*p
+    //  dot(r,r)
+#if 0
+    dfloat rdotr = BPUpdateOverlapPCG(BP, o_p, o_Ap, alpha, o_x, o_r);
+#else
+    dfloat rdotr = BPUpdatePCG(BP, o_p, o_Ap, alpha, o_x, o_r);
+#endif
+
+    dfloat rdotrinv = 1.0/rdotr;
+
+    Tkdiag = rdotrinv*pAp*rdotrinv;
+    Tkupdi = rdotrinv*pAp*(-beta)*rdotrinv;
+    Tklodi = rdotrinv*(-beta)*pAp*rdotrinv;
+
+    dfloat eigMax = Tkdiag + 2*sqrt(Tkupdi*Tklodi);
+    dfloat eigMin = Tkdiag - 2*sqrt(Tkupdi*Tklodi);
+
+    if(eigMax > lMax) lMax = eigMax;
+    if(eigMin < lMin) lMin = eigMin;
+
+  }
+
 }
 
 void BPZeroMean(BP_t* BP, occa::memory &o_q)
