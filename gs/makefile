@@ -28,6 +28,7 @@ $(OGSDIR)/ogs.hpp
 AOBJS    = \
 ./ping_pong.o \
 ./mygs.o \
+./gs.o \
 ./main.o
 
 # library objects
