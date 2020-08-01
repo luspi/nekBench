@@ -21,11 +21,8 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  std::string threadModel;
-  threadModel.assign(strdup(argv[1]));
-
   setupAide options;
-  options.setArgs("MODE", threadModel.c_str());
+  options.setArgs("MODE", argv[1]);
   bw(options);
 
   MPI_Finalize();
