@@ -12,8 +12,8 @@ endif
 
 all: bw install
 
-bw: main.cpp ${CORE_DIR}/timer.cpp ${CORE_DIR}/setCompilerFlags.hpp
-	$(CXX) $(CXXFLAGS) -o bw main.cpp ${CORE_DIR}/timer.cpp $(linkerFlags) $(LDFLAGS)
+bw: main.cpp bw.cpp ${CORE_DIR}/timer.cpp ${CORE_DIR}/setCompilerFlags.hpp ${CORE_DIR}/setupAide.cpp
+	$(CXX) $(CXXFLAGS) -o bw main.cpp bw.cpp ${CORE_DIR}/timer.cpp ${CORE_DIR}/setupAide.cpp $(linkerFlags) $(LDFLAGS)
 
 $(oPath)/%.o:$(sPath)/%.cpp $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.hpp))) $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.tpp)))
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
