@@ -22,7 +22,7 @@ int main(int argc, char** argv)
   }
 
   setupAide options;
-  options.setArgs("MODE", argv[1]);
+  options.setArgs("OCCA MODE", argv[1]);
   bw(options);
 
   MPI_Finalize();

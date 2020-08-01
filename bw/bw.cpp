@@ -32,7 +32,7 @@ void bw(setupAide &options) {
   occa::device device;
   char deviceConfig[BUFSIZ];
   
-  std::string threadModel = options.getArgs("MODE");
+  std::string threadModel = options.getArgs("OCCA MODE");
 
   if(strstr(threadModel.c_str(), "CUDA")) {
     sprintf(deviceConfig, "mode: 'CUDA', device_id: %d",deviceId);
