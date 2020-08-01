@@ -17,10 +17,7 @@ void bw(setupAide &options) {
   const int deviceId = 0;
   const int platformId = 0;
 
-  // build device
-  occa::device device;
-  char deviceConfig[BUFSIZ];
-  
+  // create handle for output file
   time_t rawtime;
   struct tm *timeinfo;
   char buffer[80];
@@ -28,8 +25,12 @@ void bw(setupAide &options) {
   timeinfo = localtime(&rawtime);
   strftime(buffer,80,"bw_%Y_%m_%d_%R.txt", timeinfo);
   FILE *outputFile = fopen(buffer, "w");
-  std::stringstream outputStream;
-  bool printToScreen = options.compareArgs("PRINT INFO", "TRUE");
+
+  std::cout << "bw: writing results to " << buffer << std::endl;
+
+  // build device
+  occa::device device;
+  char deviceConfig[BUFSIZ];
   
   std::string threadModel = options.getArgs("MODE");
 
