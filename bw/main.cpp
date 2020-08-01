@@ -9,7 +9,6 @@
 #include "occa.hpp"
 #include "timer.hpp"
 #include "setCompilerFlags.hpp"
-#include "setupAide.hpp"
 #include "bw.hpp"
 
 int main(int argc, char** argv)
