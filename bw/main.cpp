@@ -1,14 +1,5 @@
-#include <iostream>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <cmath>
-#include "omp.h"
-#include <unistd.h>
-#include "mpi.h"
-#include "occa.hpp"
-#include "timer.hpp"
-#include "setCompilerFlags.hpp"
+#include <mpi.h>
 #include "bw.hpp"
 
 int main(int argc, char** argv)
