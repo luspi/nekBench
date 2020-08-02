@@ -21,6 +21,7 @@ int main(int argc, char** argv)
   options.setArgs("DEVICE ID", (argc >= 7 ? argv[6] : "0"));
   options.setArgs("BLOCK SIZE", (argc >= 8 ? argv[7] : "256"));
   options.setArgs("GLOBAL", (argc >= 9 ? argv[8] : "0"));
+  options.setArgs("DRIVER MODUS", "FALSE");
 
   dot(options);
 

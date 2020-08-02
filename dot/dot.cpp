@@ -54,22 +54,7 @@ void dot(setupAide &options) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  // create handle for output file
-  FILE *outputFile;
-  if(rank == 0) {
-
-    time_t rawtime;
-    struct tm *timeinfo;
-    char buffer[80];
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    strftime(buffer,80,"dot_%Y_%m_%d_%R.txt", timeinfo);
-
-    outputFile = fopen(buffer, "w");
-
-    std::cout << "dot: writing results to " << buffer << std::endl;
-
-  }
+  bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
   // read options
   const int N = std::stoi(options.getArgs("N"));
@@ -105,6 +90,19 @@ void dot(setupAide &options) {
     omp_set_num_threads(1);
   }
 
+  // create handle for output file
+  FILE *outputFile;
+
+  if(rank == 0 && driverModus) {
+
+    std::stringstream fname;
+    fname << "dot_" << threadModel << "_" << arch << "_N_" << N << "_elements_" << Nelements << "_ranks_" << size << ".txt";
+    outputFile = fopen(fname.str().c_str(), "w");
+
+    std::cout << "dot: writing results to " << fname.str() << std::endl;
+
+  }
+
   int Nthreads =  omp_get_max_threads();
   std::string deviceConfigString(deviceConfig);
   device.setup(deviceConfigString);
@@ -114,8 +112,13 @@ void dot(setupAide &options) {
     std::stringstream out;
     out << "word size: " << sizeof(dfloat) << " bytes\n";
     out << "active occa mode: " << device.mode() << "\n";
-    fprintf(outputFile, out.str().c_str());
-    fflush(outputFile);
+    if(driverModus) {
+      fprintf(outputFile, out.str().c_str());
+      fflush(outputFile);
+    } else {
+      printf(out.str().c_str());
+      fflush(stdout);
+    }
   }
 
   // load kernel
@@ -138,8 +141,13 @@ void dot(setupAide &options) {
   if(rank == 0) {
     std::stringstream out;
     out << "blockSize: " << Nblock << "\n";
-    fprintf(outputFile, out.str().c_str());
-    fflush(outputFile);
+    if(driverModus) {
+      fprintf(outputFile, out.str().c_str());
+      fflush(outputFile);
+    } else {
+      printf(out.str().c_str());
+      fflush(stdout);
+    }
   }
 
   tmp = drandAlloc(Nblock);
@@ -175,9 +183,14 @@ void dot(setupAide &options) {
         << " GDOF/s=" << GDOFPerSecond
         << " GB/s=" << bw
         << "\n";
-    fprintf(outputFile, out.str().c_str());
-    fflush(outputFile);
-    fclose(outputFile);
+    if(driverModus) {
+      fprintf(outputFile, out.str().c_str());
+      fflush(outputFile);
+      fclose(outputFile);
+    } else {
+      printf(out.str().c_str());
+      fflush(stdout);
+    }
   }
 
 }
