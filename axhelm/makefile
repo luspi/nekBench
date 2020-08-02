@@ -12,8 +12,8 @@ endif
 
 all: axhelm install
 
-axhelm: main.cpp kernelHelper.cpp ${CORE_DIR}/meshBasis.cpp ${CORE_DIR}/setCompilerFlags.hpp
-	$(CXX) $(CXXFLAGS) -o axhelm main.cpp ${CORE_DIR}/meshBasis.cpp $(linkerFlags) $(LDFLAGS)
+axhelm: main.cpp axhelm.cpp kernelHelper.cpp ${CORE_DIR}/meshBasis.cpp ${CORE_DIR}/setCompilerFlags.hpp ${CORE_DIR}/setupAide.cpp
+	$(CXX) $(CXXFLAGS) -o axhelm main.cpp axhelm.cpp ${CORE_DIR}/meshBasis.cpp ${CORE_DIR}/setupAide.cpp $(linkerFlags) $(LDFLAGS)
 
 $(oPath)/%.o:$(sPath)/%.cpp $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.hpp))) $(wildcard $(subst $(sPath)/,$(iPath)/,$(<:.cpp=.tpp)))
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
