@@ -42,6 +42,8 @@ int main(int argc, char** argv)
     options.setArgs("DEVICE NUMBER", deviceNumber);
   }
 
+  options.setArgs("DRIVER MODUS", "FALSE");
+
   gs(options);
 
   MPI_Finalize();

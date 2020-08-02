@@ -20,6 +20,8 @@ void gs(setupAide &options) {
   int rank;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
+  bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
+
   const int N = std::stoi(options.getArgs("N"));
   const int NX = std::stoi(options.getArgs("NX"));
   const int NY = std::stoi(options.getArgs("NY"));
@@ -88,7 +90,8 @@ void gs(setupAide &options) {
   mygsSetup(ogs, enabledTimer);
   mesh->ogs = ogs;
 
-  meshPrintPartitionStatistics(mesh);
+  if(!driverModus)
+    meshPrintPartitionStatistics(mesh);
 
   double* U = (double*) calloc(Nlocal, sizeof(double));
   occa::memory o_U = mesh->device.malloc(Nlocal * sizeof(double), U);
@@ -155,7 +158,7 @@ void gs(setupAide &options) {
     }
   }
 
-  if(mesh->rank == 0) cout << "\nstarting measurement ...\n";
+  if(mesh->rank == 0 && !driverModus) cout << "\nstarting measurement ...\n";
   fflush(stdout);
 
   // ping pong
@@ -163,8 +166,12 @@ void gs(setupAide &options) {
   MPI_Barrier(mesh->comm);
   {
     const int nPairs = mesh->size / 2;
-    pingPongMulti(nPairs, 0, mesh->device, mesh->comm);
-    if(enabledGPUMPI) pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mesh->comm);
+    pingPongMulti(nPairs, 0, mesh->device, mesh->comm, driverModus);
+    pingPongSingle(0, mesh->device, mesh->comm, driverModus);
+    if(enabledGPUMPI) {
+      pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mesh->comm, driverModus);
+      pingPongSingle(1, mesh->device, mesh->comm, driverModus);
+    }
   }
 
   for (auto const& ogs_mode_enum : ogs_mode_list) {
@@ -210,7 +217,7 @@ void gs(setupAide &options) {
       for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
     }
 
-    if(mesh->rank == 0) {
+    if(mesh->rank == 0 && !driverModus) {
       int Nthreads =  omp_get_max_threads();
       cout << "\nsummary\n"
            << "  ogsMode                       : " << ogs_mode_enum << "\n"
