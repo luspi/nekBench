@@ -16,16 +16,7 @@ void bw(setupAide &options) {
   const int deviceId = 0;
   const int platformId = 0;
 
-  // create handle for output file
-  time_t rawtime;
-  struct tm *timeinfo;
-  char buffer[80];
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  strftime(buffer,80,"bw_%Y_%m_%d_%R.txt", timeinfo);
-  FILE *outputFile = fopen(buffer, "w");
-
-  std::cout << "bw: writing results to " << buffer << std::endl;
+  bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
   // build device
   occa::device device;
@@ -46,6 +37,18 @@ void bw(setupAide &options) {
     omp_set_num_threads(1);
   }
 
+  FILE *outputFile;
+
+  if(driverModus) {
+
+    std::stringstream fname;
+    fname << "bw_" << threadModel << ".txt";
+    outputFile = fopen(fname.str().c_str(), "w");
+
+    std::cout << "bw: writing results to " << fname.str() << std::endl;
+
+  }
+
   int Nthreads =  omp_get_max_threads();
   std::string deviceConfigString(deviceConfig);
   device.setup(deviceConfigString);
@@ -53,8 +56,13 @@ void bw(setupAide &options) {
 
   std::stringstream outMode;
   outMode << "active occa mode: " << device.mode() << "\n\n";
-  fprintf(outputFile, outMode.str().c_str());
-  fflush(outputFile);
+  if(driverModus) {
+    fprintf(outputFile, outMode.str().c_str());
+    fflush(outputFile);
+  } else {
+    printf(outMode.str().c_str());
+    fflush(stdout);
+  }
 
   occa::properties props;
   props["defines"].asObject();
@@ -92,8 +100,13 @@ void bw(setupAide &options) {
           << N[i] << " words, "
           << elapsed << " s, "
           << bytes / elapsed << " bytes/s\n";
-      fprintf(outputFile, out.str().c_str());
-      fflush(outputFile);
+      if(driverModus) {
+        fprintf(outputFile, out.str().c_str());
+        fflush(outputFile);
+      } else {
+        printf(out.str().c_str());
+        fflush(stdout);
+      }
     }
     o_a.free();
     o_b.free();
@@ -118,13 +131,21 @@ void bw(setupAide &options) {
           << N[i] << " words, "
           << elapsed << " s, "
           << bytes / elapsed << " bytes/s\n";
-      fprintf(outputFile, out.str().c_str());
-      fflush(outputFile);
+      if(driverModus) {
+        fprintf(outputFile, out.str().c_str());
+        fflush(outputFile);
+      } else {
+        printf(out.str().c_str());
+        fflush(stdout);
+      }
     }
     o_wrk.free();
   }
 
-  fprintf(outputFile, "\n");
+  if(driverModus)
+    fprintf(outputFile, "\n");
+  else
+    printf("\n");
 
   {
     const int N[] =
@@ -152,11 +173,19 @@ void bw(setupAide &options) {
       out << "D->H memcpy " <<  N[i] << " words, "
           << elapsed << " s, "
           << bytes / elapsed << " bytes/s\n";
-      fprintf(outputFile, out.str().c_str());
-      fflush(outputFile);
+      if(driverModus) {
+        fprintf(outputFile, out.str().c_str());
+        fflush(outputFile);
+      } else {
+        printf(out.str().c_str());
+        fflush(stdout);
+      }
     }
     
-    fprintf(outputFile, "\n");
+    if(driverModus)
+      fprintf(outputFile, "\n");
+    else
+      printf("\n");
 
     for(int i = 0; i < Nsize; ++i) {
       int Ntests = 5000;
@@ -175,15 +204,23 @@ void bw(setupAide &options) {
       out << "H->D memcpy " <<  N[i] << " words, "
           << elapsed << " s, "
           << bytes / elapsed << " bytes/s\n";
-      fprintf(outputFile, out.str().c_str());
-      fflush(outputFile);
+      if(driverModus) {
+        fprintf(outputFile, out.str().c_str());
+        fflush(outputFile);
+      } else {
+        printf(out.str().c_str());
+        fflush(stdout);
+      }
     }
 
     h_u.free();
     o_a.free();
   }
 
-  fprintf(outputFile, "\n");
+  if(driverModus)
+    fprintf(outputFile, "\n");
+  else
+    printf("\n");
 
   {
     const int Ntests = 20000;
@@ -207,13 +244,19 @@ void bw(setupAide &options) {
       out << "D->D memcpy " <<  N[i] << " words, "
           << elapsed << " s, "
           << 2 * bytes / elapsed << " bytes/s\n";
-      fprintf(outputFile, out.str().c_str());
-      fflush(outputFile);
+      if(driverModus) {
+        fprintf(outputFile, out.str().c_str());
+        fflush(outputFile);
+      } else {
+        printf(out.str().c_str());
+        fflush(stdout);
+      }
     }
     o_a.free();
     o_b.free();
   }
   
-  fclose(outputFile);
+  if(driverModus)
+    fclose(outputFile);
     
 }
