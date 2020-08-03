@@ -51,6 +51,7 @@ export BWDIR  = $(CURDIR)/bw
 export ADVDIR  = $(CURDIR)/adv
 export DOTDIR  = $(CURDIR)/dot
 export GSDIR  = $(CURDIR)/gs
+export DRIVERDIR  = $(CURDIR)/driver
 
 export CFLAGS = -I. -DOCCA_VERSION_1_0 $(cCompilerFlags) $(flags) -I$(HDRDIR) -I$(LIBGSDIR)/src -I$(OLIBGSDIR) -I$(OLIBGSDIR)/include -DDOGS='"$(PREFIX)/libgs/"' -D DBP='"$(PREFIX)/"' $(paths)
 
@@ -63,7 +64,7 @@ LDFLAGS_GS = -L$(PREFIX)/libgs/lib -logs -L$(PREFIX)/libgs/lib -lgs
 
 .PHONY: install bw dot axhelm adv gs nekBone all clean realclean libblas libogs
 
-all: occa nekBone axhelm bw dot adv gs install
+all: occa nekBone axhelm bw dot adv gs driver install
 	@rm -rf $(PREFIX)/blasLapack \
 	echo ""; \
 	echo "install dir: ${PREFIX}"; \
@@ -94,6 +95,9 @@ nekBone: occa libogs libblas
 gs: occa libogs libblas
 	LDFLAGS="$(LDFLAGS_OCCA) $(LDFLAGS_GS) $(LDFLAGS_BLAS) $(LDFLAGS)" $(MAKE) -C $(GSDIR)
 
+driver: occa libogs libblas
+	LDFLAGS="$(LDFLAGS_OCCA) $(LDFLAGS_GS) $(LDFLAGS_BLAS) $(LDFLAGS)" $(MAKE) -C $(DRIVERDIR)
+
 occa:
 	@PREFIX=$(PREFIX)/occa $(MAKE) -j8 -C $(OCCA_DIR)
 
@@ -109,6 +113,7 @@ clean:
 	@$(MAKE) -C $(BWDIR) clean
 	@$(MAKE) -C $(DOTDIR) clean
 	@$(MAKE) -C $(GSDIR) clean
+	@$(MAKE) -C $(DRIVERDIR) clean
 
 realclean: clean
 	@rm -rf core/*.o

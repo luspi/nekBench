@@ -9,24 +9,17 @@
 #include "meshBasis.hpp"
 #include "setupAide.hpp"
 #include "kernelHelper.cpp"
+namespace dA {
+#include "drandalloc.hpp"
+}
 
 occa::memory o_tmp;
 occa::memory o_tmp2;
 dfloat* tmp;
 static occa::kernel kernel;
 
-dfloat* drandAlloc(int N)
-{
-  dfloat* v = (dfloat*) calloc(N, sizeof(dfloat));
-
-  for(int n = 0; n < N; ++n)
-    v[n] = drand48();
-
-  return v;
-}
-
 dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_w,
-                            occa::memory &o_a, occa::memory &o_b, int global)
+                            occa::memory &o_a, occa::memory &o_b, int global, MPI_Comm mpiComm)
 {
   dfloat globalwab = 0;
   kernel(N, o_w, o_a, o_b, o_tmp);
@@ -43,16 +36,16 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
   dfloat wab = 0;
   for(dlong n = 0; n < Nblock; ++n) wab += tmp[n];
 
-  if(global) MPI_Allreduce(&wab, &globalwab, 1, MPI_DFLOAT, MPI_SUM, MPI_COMM_WORLD);
+  if(global) MPI_Allreduce(&wab, &globalwab, 1, MPI_DFLOAT, MPI_SUM, mpiComm);
 
   return globalwab;
 }
 
-void dot(setupAide &options) {
+void dot(setupAide &options, MPI_Comm mpiComm) {
 
   int rank = 0, size = 1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(mpiComm, &rank);
+  MPI_Comm_size(mpiComm, &size);
 
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
@@ -125,12 +118,12 @@ void dot(setupAide &options) {
   std::string kernelName = "weightedInnerProduct2";
   const int kernelVersion = 0; // hardwired for now
   kernelName += "_v" + std::to_string(kernelVersion);
-  kernel = loadKernel(device, threadModel, arch, kernelName, N, Nelements, blockSize);
+  kernel = loadKernel(device, threadModel, arch, kernelName, N, Nelements, blockSize, mpiComm);
 
   // populate device arrays
-  dfloat* a = drandAlloc(Np * Nelements);
-  dfloat* b = drandAlloc(Np * Nelements);
-  dfloat* c = drandAlloc(Np * Nelements);
+  dfloat* a = dA::drandAlloc(Np * Nelements);
+  dfloat* b = dA::drandAlloc(Np * Nelements);
+  dfloat* c = dA::drandAlloc(Np * Nelements);
 
   occa::memory o_a = device.malloc(Np * Nelements * sizeof(dfloat), a);
   occa::memory o_b = device.malloc(Np * Nelements * sizeof(dfloat), a);
@@ -150,20 +143,27 @@ void dot(setupAide &options) {
     }
   }
 
-  tmp = drandAlloc(Nblock);
+  tmp = dA::drandAlloc(Nblock);
   o_tmp = device.malloc(Nblock * sizeof(dfloat), tmp);
   o_tmp2 = device.malloc(Nblock * sizeof(dfloat), tmp);
 
   // run kernel
-  weightedInnerProduct(Nelements * Np, 0, Nblock, o_c, o_a, o_b, global);
+  weightedInnerProduct(Nelements * Np, 0, Nblock, o_c, o_a, o_b, global, mpiComm);
   device.finish();
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(mpiComm);
   const double start = MPI_Wtime();
   for(int test = 0; test < Ntests; ++test)
-    weightedInnerProduct(Nelements * Np, 0, Nblock, o_c, o_a, o_b, global);
+    weightedInnerProduct(Nelements * Np, 0, Nblock, o_c, o_a, o_b, global, mpiComm);
   device.finish();
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(mpiComm);
   const double elapsed = (MPI_Wtime() - start) / Ntests;
+  
+  free(a);
+  free(b);
+  free(c);
+  o_a.free();
+  o_b.free();
+  o_c.free();
 
   // print statistics
   double GDOFPerSecond = size * (Nelements * N * N * N) / elapsed / 1.e9;

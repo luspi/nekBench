@@ -159,7 +159,7 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool
   if(options.compareArgs("PROFILING", "TRUE")) BP->profiling = 1;
   int sync = 0;
   if(options.compareArgs("TIMER SYNC", "TRUE")) sync = 1;
-  if(BP->profiling) timer::init(MPI_COMM_WORLD, mesh->device, sync);
+  if(BP->profiling) timer::init(mesh->comm, mesh->device, sync);
 
   return BP;
 }

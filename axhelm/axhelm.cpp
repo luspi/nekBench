@@ -8,21 +8,14 @@
 #include "occa.hpp"
 #include "meshBasis.hpp"
 #include "setupAide.hpp"
+namespace dA {
+#include "drandalloc.hpp"
+}
 
 #include "kernelHelper.cpp"
 #include "axhelmReference.cpp"
 
 static occa::kernel axKernel;
-
-dfloat* drandAlloc(int N)
-{
-  dfloat* v = (dfloat*) calloc(N, sizeof(dfloat));
-
-  for(int n = 0; n < N; ++n)
-    v[n] = drand48();
-
-  return v;
-}
 
 void axhelm(setupAide &options) {
 
@@ -107,9 +100,9 @@ void axhelm(setupAide &options) {
   axKernel = loadAxKernel(device, threadModel, arch, kernelName, N, Nelements);
 
   // populate device arrays
-  dfloat* ggeo = drandAlloc(Np * Nelements * p_Nggeo);
-  dfloat* q    = drandAlloc((Ndim * Np) * Nelements);
-  dfloat* Aq   = drandAlloc((Ndim * Np) * Nelements);
+  dfloat* ggeo = dA::drandAlloc(Np * Nelements * p_Nggeo);
+  dfloat* q    = dA::drandAlloc((Ndim * Np) * Nelements);
+  dfloat* Aq   = dA::drandAlloc((Ndim * Np) * Nelements);
 
   occa::memory o_ggeo   = device.malloc(Np * Nelements * p_Nggeo * sizeof(dfloat), ggeo);
   occa::memory o_q      = device.malloc((Ndim * Np) * Nelements * sizeof(dfloat), q);

@@ -15,10 +15,10 @@
 
 #include "mygs.h"
 
-void gs(setupAide &options) {
+void gs(setupAide &options, MPI_Comm mpiComm) {
 
   int rank;
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank (mpiComm, &rank);
 
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
@@ -32,7 +32,7 @@ void gs(setupAide &options) {
   if(mode > 0) {
     if(mode > 4) {
       if(rank == 0) printf("invalid ogs_mode!\n");
-      MPI_Abort(MPI_COMM_WORLD,1);
+      MPI_Abort(mpiComm,1);
     }
     if(mode) ogs_mode_list.push_back((ogs_mode)(mode - 1));
   } else {
@@ -78,7 +78,7 @@ void gs(setupAide &options) {
     for (int r = 0; r < 2; r++) {
       if ((r == 0 && mesh->rank == 0) || (r == 1 && mesh->rank > 0))
         kernel = mesh->device.buildKernel("gs_dummy.okl", "dummy", kernelInfo);
-      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(mpiComm);
     }
   }
 
@@ -250,5 +250,10 @@ void gs(setupAide &options) {
       }
     }
   }
+    
+  free(U);
+  o_U.free();
+  o_q.free();
+  delete mesh;
 
 }

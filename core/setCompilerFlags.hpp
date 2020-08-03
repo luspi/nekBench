@@ -1,3 +1,7 @@
+#include <occa.hpp>
+#include <mpi.h>
+#include <params.h>
+
 static void setCompilerFlags(occa::device device, occa::properties &kernelInfo)
 {
   if(device.mode() == "CUDA") { // add backend compiler optimization for CUDA
