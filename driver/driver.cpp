@@ -33,7 +33,7 @@ void driver(std::string inifile) {
   dotOptions.setArgs("BLOCK SIZE", "256");
   dotOptions.setArgs("GLOBAL", "0");
   dotOptions.setArgs("DRIVER MODUS", "TRUE");
-  dot(dotOptions);
+  dot(dotOptions, MPI_COMM_WORLD);
   
   MPI_Barrier(MPI_COMM_WORLD);
   
@@ -51,7 +51,7 @@ void driver(std::string inifile) {
   gsOptions.setArgs("GPUMPI", "0");
   gsOptions.setArgs("DEVICE NUMBER", "0");
   gsOptions.setArgs("DRIVER MODUS", "TRUE");
-  gs(gsOptions);
+  gs(gsOptions, MPI_COMM_WORLD);
     
   MPI_Barrier(MPI_COMM_WORLD);
   
