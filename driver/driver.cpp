@@ -18,7 +18,7 @@ void driver(std::string inifile) {
     setupAide bwOptions;
     bwOptions.setArgs("THREAD MODEL", "SERIAL");
     bwOptions.setArgs("DRIVER MODUS", "TRUE");
-//     bw(bwOptions);
+    bw(bwOptions);
   }
   
   MPI_Barrier(MPI_COMM_WORLD);
@@ -51,7 +51,7 @@ void driver(std::string inifile) {
   gsOptions.setArgs("GPUMPI", "0");
   gsOptions.setArgs("DEVICE NUMBER", "0");
   gsOptions.setArgs("DRIVER MODUS", "TRUE");
-//   gs(gsOptions);
+  gs(gsOptions);
     
   MPI_Barrier(MPI_COMM_WORLD);
   
