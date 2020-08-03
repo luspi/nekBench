@@ -40,7 +40,7 @@ static dfloat BPUpdateOverlapPCG(BP_t* BP,
 int BPPCG(BP_t* BP, occa::memory &o_lambda,
           occa::memory &o_r, occa::memory &o_x,
           const dfloat tol, const int MAXIT,
-          double* opElapsed)
+          double* opElapsed, bool driverModus, FILE *driverFile)
 {
   mesh_t* mesh = BP->mesh;
   setupAide options = BP->options;
@@ -117,10 +117,21 @@ int BPPCG(BP_t* BP, occa::memory &o_lambda,
 #endif
 
     if (verbose && (mesh->rank == 0)) {
-      if(rdotr < 0)
-        printf("WARNING CG: rdotr = %17.15lf\n", rdotr);
+      if(rdotr < 0) {
+        std::stringstream out;
+        out << "WARNING CG: rdotr = " << rdotr << std::endl;
+        if(driverModus)
+          fprintf(driverFile, out.str().c_str());
+        else
+          std::cout << out.str();
+      }
 
-      printf("CG: it %d r norm %12.12le alpha = %le \n", iter, sqrt(rdotr), alpha);
+      std::stringstream out;
+      out << "CG: it " << iter << " r norm " << sqrt(rdotr) << " alpha = " << alpha << std::endl;
+      if(driverModus)
+        fprintf(driverFile, out.str().c_str());
+      else
+        std::cout << out.str();
     }
 
     if(rdotr <= TOL && !fixedIterationCountFlag) break;

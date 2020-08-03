@@ -33,14 +33,29 @@ static occa::memory p_tmp;
 
 void reportMemoryUsage(occa::device &device, const char* mess);
 
-BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options)
+BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool driverModus, FILE** driverFile)
 {
   BP_t* BP = new BP_t();
+
+  if(mesh->rank == 0 && driverModus) {
+
+    std::stringstream fname;
+    fname << "nekBone_" << mesh->Nelements << "_elements_" << mesh->size << "_ranks.txt";
+    *driverFile = fopen(fname.str().c_str(), "w");
+
+    std::cout << "nekBone: writing results to " << fname.str() << std::endl;
+
+  }
 
   BP->BPid = 0;
   BP->Nfields = 1;
   if(options.compareArgs("BPMODE", "TRUE")) {
-    if(mesh->rank == 0) printf("BP mode enabled\n");
+    if(mesh->rank == 0) {
+      if(driverModus)
+        fprintf(*driverFile, "BP mode enabled\n");
+      else
+        printf("BP mode enabled\n");
+    }
     options.setArgs("PRECONDITIONER", "COPY");
     BP->BPid = 5;
     //options.getArgs("NUMBER OF FIELDS", BP->Nfields);
@@ -57,9 +72,19 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options)
   if(options.compareArgs("THREAD MODEL", "OPENMP")) BP->overlap = false;
   if(mesh->size == 1) BP->overlap = false;
   if(BP->overlap) {
-    if(mesh->rank == 0) printf("overlap enabled\n");
+    if(mesh->rank == 0) {
+      if(driverModus)
+        fprintf(*driverFile, "overlap enabled\n");
+      else
+        printf("overlap enabled\n");
+    }
   } else {
-    if(mesh->rank == 0) printf("overlap disabled\n");
+    if(mesh->rank == 0) {
+      if(driverModus)
+        fprintf(*driverFile, "overlap disabled\n");
+      else
+        printf("overlap disabled\n");
+    }
   }
 
   options.getArgs("MESH DIMENSION", BP->dim);
@@ -122,10 +147,12 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options)
   if (options.compareArgs("VERBOSE", "TRUE")) {
     fflush(stdout);
     MPI_Barrier(mesh->comm);
-    printf("rank %d has %d internal elements and %d non-internal elements\n",
-           mesh->rank,
-           mesh->NinternalElements,
-           mesh->NnotInternalElements);
+    std::stringstream out;
+    out << "rank " << mesh->rank << " has " << mesh->NinternalElements << " internal elements and " << mesh->NnotInternalElements << " non-internal elements\n";
+    if(driverModus)
+      fprintf(*driverFile, out.str().c_str());
+    else
+      printf(out.str().c_str());
   }
 
   BP->profiling = 0;

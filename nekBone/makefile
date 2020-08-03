@@ -30,7 +30,8 @@ ${CORE_DIR}/setCompilerFlags.hpp \
 AOBJS    = \
 ./main.o \
 ./setup.o \
-./solve.o\
+./solve.o \
+./nekBone.o \
 
 # library objects
 LOBJS = \

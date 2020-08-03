@@ -186,7 +186,7 @@ typedef struct
   dfloat nullProjectWeightGlobal;
 }BP_t;
 
-BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options);
+BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool driverModus, FILE **driverFile);
 
 void solveSetup(BP_t* BP, occa::properties &kernelInfo);
 
@@ -209,7 +209,9 @@ int BPPCG   (BP_t* BP,
              occa::memory &o_x,
              const dfloat tol,
              const int MAXIT,
-             double* opElapsed);
+             double* opElapsed,
+             bool driverModus,
+             FILE *driverFile);
 
 void BPScaledAdd(BP_t* BP, dfloat alpha, occa::memory &o_a, dfloat beta, occa::memory &o_b);
 
