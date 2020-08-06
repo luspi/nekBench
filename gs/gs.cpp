@@ -254,6 +254,17 @@ void gs(setupAide &options, MPI_Comm mpiComm) {
   free(U);
   o_U.free();
   o_q.free();
-  delete mesh;
+  if(ogs->haloGatherOffsets) free(ogs->haloGatherOffsets);
+  if(ogs->haloGatherIds) free(ogs->haloGatherIds);
+  if(ogs->haloGshSym) free(ogs->haloGshSym);
+  if(ogs->haloGshNonSym) free(ogs->haloGshNonSym);
+  if(ogs->localGatherOffsets) free(ogs->localGatherOffsets);
+  if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
+  if(ogs->localGatherIds) free(ogs->localGatherIds);
+  if(ogs->invDegree) free(ogs->invDegree);
+  // calling ogsFree() on ogs causes crash.
+  // As much as possible the memory inside ogs is freed manually, so that we simply decrease the ref counter here.
+  ogs::Nrefs--;
+  meshDestroy(mesh);
 
 }

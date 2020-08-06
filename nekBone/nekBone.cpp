@@ -241,4 +241,7 @@ void nekBone(setupAide &options) {
     }
   }
 
+  BPDestroy(BP);
+  meshDestroy(mesh);
+
 }

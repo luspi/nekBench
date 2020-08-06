@@ -767,6 +767,14 @@ void meshGeometricPartition3D(mesh3D* mesh)
     mesh->elementInfo[e] = elements[e].type;
   }
   if (elements) free(elements);
+
+  free(globalNelements);
+  free(starts);
+  free(Nsend);
+  free(Nrecv);
+  free(sendOffsets);
+  free(recvOffsets);
+
 #endif
 }
 
@@ -1599,6 +1607,10 @@ void meshOccaPopulateDevice3D(mesh3D* mesh, setupAide &newOptions, occa::propert
   kernelInfo["defines/" "p_JID"] = JID;
   kernelInfo["defines/" "p_JWID"] = JWID;
   kernelInfo["defines/" "p_IJWID"] = IJWID;
+
+  free(internalElementIds);
+  free(notInternalElementIds);
+
 }
 
 void meshOccaSetup3D(mesh3D* mesh, setupAide &newOptions, occa::properties &kernelInfo)
@@ -1838,6 +1850,7 @@ void meshConnect(mesh_t* mesh)
       mesh->EToF[cnt] = faces[cnt].faceNeighbor;
       ++cnt;
     }
+    free(faces);
 }
 
 typedef struct
@@ -2059,6 +2072,11 @@ void meshParallelConnect(mesh_t* mesh)
 
   MPI_Barrier(mesh->comm);
   MPI_Type_free(&MPI_PARALLELFACE_T);
+
+  free(Nsend);
+  free(Nrecv);
+  free(sendOffsets);
+  free(recvOffsets);
   free(sendFaces);
   free(recvFaces);
 }
@@ -3199,6 +3217,9 @@ void meshSurfaceGeometricFactorsHex3D(mesh3D* mesh)
   free(cubzre);
   free(cubzse);
   free(cubzte);
+  free(cubxe);
+  free(cubye);
+  free(cubze);
 }
 
 int isHigher(const void* a, const void* b)
@@ -3252,6 +3273,7 @@ void occaDeviceConfig(mesh_t* mesh, setupAide &options)
       if (hostIds[r] == hostId) device_id++;
     for (int r = 0; r < size; r++)
       if (hostIds[r] == hostId) totalDevices++;
+    free(hostIds);
   } else {
     options.getArgs("DEVICE NUMBER",device_id);
   }
@@ -3492,6 +3514,9 @@ void meshParallelGatherScatterSetup(mesh_t* mesh,
   if(localCount)
     mesh->o_localGatherElementList =
       mesh->device.malloc(localCount * sizeof(dlong), mesh->localGatherElementList);
+
+  free(minRank);
+  free(maxRank);
 }
 
 // uniquely label each node with a global index, used for gatherScatter
@@ -3749,4 +3774,57 @@ void meshPrintPartitionStatistics(mesh_t* mesh)
   }
 
   fflush(stdout);
+}
+
+void meshDestroy(mesh_t *mesh) {
+
+  free(mesh->haloElementList);
+  free(mesh->MM);
+  free(mesh->ggeo);
+  free(mesh->vgeo);
+  free(mesh->gllz);
+  free(mesh->gllw);
+  free(mesh->sgeo);
+  free(mesh->cubsgeo);
+  free(mesh->faceNodes);
+  free(mesh->EToB);
+  free(mesh->EToE);
+  free(mesh->EToF);
+  free(mesh->EToP);
+  free(mesh->r);
+  free(mesh->s);
+  free(mesh->t);
+  free(mesh->cubggeo);
+  free(mesh->EToV);
+  free(mesh->EX);
+  free(mesh->EY);
+  if(mesh->dim == 3)
+    free(mesh->EZ);
+  free(mesh->cubvgeo);
+  free(mesh->vmapM);
+  free(mesh->vmapP);
+  free(mesh->mapP);
+  free(mesh->x);
+  free(mesh->y);
+  if(mesh->dim == 3)
+    free(mesh->z);
+  free(mesh->globalIds);
+  free(mesh->localizedIds);
+  free(mesh->haloGetNodeIds);
+  free(mesh->haloPutNodeIds);
+  free(mesh->NhaloPairs);
+  free(mesh->Dr);
+  free(mesh->haloSendRequests);
+  free(mesh->haloRecvRequests);
+  free(mesh->vertexNodes);
+  free(mesh->cubInterp);
+  free(mesh->cubr);
+  free(mesh->cubw);
+  free(mesh->cubD);
+  free(mesh->faceVertices);
+  free(mesh->D);
+  free(mesh->filterMatrix);
+  free(mesh->elementInfo);
+  delete mesh;
+
 }

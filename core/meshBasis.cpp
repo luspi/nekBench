@@ -126,6 +126,8 @@ int meshJacobiGQ(dfloat alpha, dfloat beta, int N, dfloat** x, dfloat** w)
 
 #endif
 
+  free(J);
+  free(h1);
   free(WR);
   free(WI);
   free(VR);
@@ -168,6 +170,10 @@ int meshJacobiGL(dfloat alpha, dfloat beta, int N, dfloat** x, dfloat** w)
       res += MM[n * (N + 1) + m];
     w[0][n] = res;
   }
+
+  free(MM);
+  free(V);
+  free(Vr);
 
   return N + 1;
 }
@@ -716,6 +722,13 @@ void matrixEig(int N, dfloat* A, dfloat* VR, dfloat* WR, dfloat* WI)
     for(int m = 0; m < N; ++m)
       VR[n + m * N] = tmpVR[n * N + m];
   }
+
+  free(tmpA);
+  free(tmpWR);
+  free(tmpWI);
+  free(tmpVR);
+  free(WORK);
+
 }
 
 // assumes column major

@@ -206,6 +206,8 @@ typedef struct
   occa::kernel maskKernel;
 }mesh_t;
 
+void meshDestroy(mesh_t *mesh);
+
 // serial sort
 void mysort(hlong* data, int N, const char* order);
 

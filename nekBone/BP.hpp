@@ -188,6 +188,8 @@ typedef struct
 
 BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool driverModus, FILE **driverFile);
 
+void BPDestroy(BP_t *BP);
+
 void solveSetup(BP_t* BP, occa::properties &kernelInfo);
 
 void BPStartHaloExchange(BP_t* BP,

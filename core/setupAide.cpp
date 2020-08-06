@@ -79,6 +79,8 @@ string setupAide::readFile(string filename)
 
   string ret = source;
 
+  free(source);
+
   return ret;
 }
 

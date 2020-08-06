@@ -18,9 +18,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  std::string threadModel;
-  threadModel.assign(strdup(argv[5]));
-  options.setArgs("THREAD MODEL", threadModel);
+  options.setArgs("THREAD MODEL", argv[5]);
 
   options.setArgs("N", argv[1]);
   options.setArgs("NX", argv[2]);

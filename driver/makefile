@@ -57,7 +57,7 @@ all: driver install
 
 install:
 	@mkdir -p $(PREFIX)
-	@cp driver $(PREFIX)/driver.ini
+	@cp driver.ini $(PREFIX)/driver.ini
 	@cd ../bw/kernel; find . -type f -name "*" -exec install -D {} $(PREFIX)/kernel/{} \;
 	@cd ../dot/kernel; find . -type f -name "*" -exec install -D {} $(PREFIX)/kernel/{} \;
 	@cp ../gs/*.okl $(PREFIX) 

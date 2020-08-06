@@ -136,8 +136,6 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool
   }
   BP->o_lambda = mesh->device.malloc(2 * Nall * sizeof(dfloat), BP->lambda);
 
-  char* suffix = strdup("Hex3D");
-
   if(options.compareArgs("DISCRETIZATION","CONTINUOUS"))
     ogsGatherScatterMany(BP->o_r, BP->Nfields, Ndof, ogsDfloat, ogsAdd, mesh->ogs);
 
@@ -483,4 +481,31 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
 
   BP->streamDefault = mesh->device.getStream();
   BP->stream1 = mesh->device.createStream();
+}
+
+void BPDestroy(BP_t *BP) {
+
+  if(BP->type) free(BP->type);
+  if(BP->BCType) free(BP->BCType);
+  if(BP->q) free(BP->q);
+  if(BP->x) free(BP->x);
+  if(BP->r) free(BP->r);
+  if(BP->lambda) free(BP->lambda);
+  if(BP->solveWorkspace) free(BP->solveWorkspace);
+  if(BP->invDegree) free(BP->invDegree);
+  if(BP->EToB) free(BP->EToB);
+  if(BP->sendBuffer) free(BP->sendBuffer);
+  if(BP->recvBuffer) free(BP->recvBuffer);
+  if(BP->gradSendBuffer) free(BP->gradSendBuffer);
+  if(BP->gradRecvBuffer) free(BP->gradRecvBuffer);
+  if(BP->tmpNormr) free(BP->tmpNormr);
+  if(BP->tmpAtomic) free(BP->tmpAtomic);
+  if(BP->mesh->maskedGlobalIds) free(BP->mesh->maskedGlobalIds);
+  if(BP->mesh->globalGatherElementList) free(BP->mesh->globalGatherElementList);
+  if(BP->mesh->localGatherElementList) free(BP->mesh->localGatherElementList);
+  if(BP->o_solveWorkspace) delete[] BP->o_solveWorkspace;
+  if(BP->BPKernel) delete[] BP->BPKernel;
+  BP->mesh->device.free();
+  delete BP;
+
 }
