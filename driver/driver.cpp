@@ -30,8 +30,8 @@ void driver(std::string inifile, MPI_Comm comm) {
 
   ParRead parReader(inifile);
 
-  std::string benchmarks[5] = {"bw", "dot", "gs", "axhelm", "nekbone"};
-  for(int iBench = 0; iBench < 5; ++iBench) {
+  std::string benchmarks[6] = {"bw", "dot", "ogs", "pingpong", "axhelm", "nekbone"};
+  for(int iBench = 0; iBench < 6; ++iBench) {
 
     std::vector<setupAide> allopt = parReader.getOptions(benchmarks[iBench]);
 
@@ -72,10 +72,12 @@ void driver(std::string inifile, MPI_Comm comm) {
         } else if(iBench == 1) {
           dot(allopt[iOpt], subComm);
         } else if(iBench == 2) {
-          gs(allopt[iOpt], subComm);
+          gs(allopt[iOpt], subComm, true, false);
         } else if(iBench == 3) {
-          axhelm(allopt[iOpt]);
+          gs(allopt[iOpt], subComm, false, true);
         } else if(iBench == 4) {
+          axhelm(allopt[iOpt]);
+        } else if(iBench == 5) {
           nekBone(allopt[iOpt]);
         }
       }

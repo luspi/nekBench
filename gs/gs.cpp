@@ -15,7 +15,7 @@
 
 #include "mygs.h"
 
-void gs(setupAide &options, MPI_Comm mpiComm) {
+void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPong) {
 
   int rank;
   MPI_Comm_rank (mpiComm, &rank);
@@ -27,22 +27,22 @@ void gs(setupAide &options, MPI_Comm mpiComm) {
   const int NY = std::stoi(options.getArgs("NY"));
   const int NZ = std::stoi(options.getArgs("NZ"));
 
-  int mode = std::stoi(options.getArgs("OGS MODE"));
   std::list<ogs_mode> ogs_mode_list;
-  if(mode > 0) {
-    if(mode > 4) {
-      if(rank == 0) printf("invalid ogs_mode!\n");
-      MPI_Abort(mpiComm,1);
+  if(testOgsModes) {
+    int mode = std::stoi(options.getArgs("OGS MODE"));
+    if(mode > 0) {
+      if(mode > 4) {
+        if(rank == 0) printf("invalid ogs_mode!\n");
+        MPI_Abort(mpiComm,1);
+      }
+      if(mode) ogs_mode_list.push_back((ogs_mode)(mode - 1));
+    } else {
+      ogs_mode_list.push_back(OGS_DEFAULT);
+      ogs_mode_list.push_back(OGS_HOSTMPI);
     }
-    if(mode) ogs_mode_list.push_back((ogs_mode)(mode - 1));
-  } else {
-    ogs_mode_list.push_back(OGS_DEFAULT);
-    ogs_mode_list.push_back(OGS_HOSTMPI);
   }
 
-  int Ntests = std::stoi(options.getArgs("NTESTS"));
   int enabledTimer = std::stoi(options.getArgs("ENABLED TIMER"));
-  int dummyKernel = std::stoi(options.getArgs("DUMMY KERNEL"));
   std::string floatType = options.getArgs("FLOAT TYPE");
   int unit_size = (floatType == "float" ? sizeof(float) : sizeof(double));
   int enabledGPUMPI = std::stoi(options.getArgs("GPUMPI"));
@@ -74,11 +74,14 @@ void gs(setupAide &options, MPI_Comm mpiComm) {
 
   // setup dummy kernel
   occa::kernel kernel;
-  if(dummyKernel) {
-    for (int r = 0; r < 2; r++) {
-      if ((r == 0 && mesh->rank == 0) || (r == 1 && mesh->rank > 0))
-        kernel = mesh->device.buildKernel("gs_dummy.okl", "dummy", kernelInfo);
-      MPI_Barrier(mpiComm);
+  if(testOgsModes) {
+    int dummyKernel = std::stoi(options.getArgs("DUMMY KERNEL"));
+    if(dummyKernel) {
+      for (int r = 0; r < 2; r++) {
+        if ((r == 0 && mesh->rank == 0) || (r == 1 && mesh->rank > 0))
+          kernel = mesh->device.buildKernel("gs_dummy.okl", "dummy", kernelInfo);
+        MPI_Barrier(mpiComm);
+      }
     }
   }
 
@@ -161,92 +164,102 @@ void gs(setupAide &options, MPI_Comm mpiComm) {
   if(mesh->rank == 0 && !driverModus) cout << "\nstarting measurement ...\n";
   fflush(stdout);
 
-  // ping pong
-  mesh->device.finish();
-  MPI_Barrier(mesh->comm);
-  {
-    const int nPairs = mesh->size / 2;
-    pingPongMulti(nPairs, 0, mesh->device, mesh->comm, driverModus);
-    pingPongSingle(0, mesh->device, mesh->comm, driverModus);
-    if(enabledGPUMPI) {
-      pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mesh->comm, driverModus);
-      pingPongSingle(1, mesh->device, mesh->comm, driverModus);
+  if(testPingPong) {
+
+    // ping pong
+    mesh->device.finish();
+    MPI_Barrier(mpiComm);
+    {
+      const int nPairs = mesh->size / 2;
+      pingPongMulti(nPairs, 0, mesh->device, mpiComm, driverModus);
+      pingPongSingle(0, mesh->device, mpiComm, driverModus);
+      if(enabledGPUMPI) {
+        pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mpiComm, driverModus);
+        pingPongSingle(1, mesh->device, mpiComm, driverModus);
+      }
     }
+
   }
 
-  for (auto const& ogs_mode_enum : ogs_mode_list) {
-    occa::stream defaultStream = mesh->device.getStream();
-    occa::stream kernelStream  = mesh->device.createStream();
+  if(testOgsModes) {
 
-    // gs
-    timer::reset();
-    mesh->device.setStream(kernelStream);
-    mesh->device.finish();
-    MPI_Barrier(mesh->comm);
-    const double start = MPI_Wtime();
-    for(int test = 0; test < Ntests; ++test) {
-      mygsStart(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
-      if(dummyKernel) {
-        if(enabledTimer) timer::tic("dummyKernel");
-        kernel(Nlocal, o_U);
-        mesh->device.setStream(defaultStream);
-        if(enabledTimer) timer::toc("dummyKernel");
+    int Ntests = std::stoi(options.getArgs("NTESTS"));
+    int dummyKernel = std::stoi(options.getArgs("DUMMY KERNEL"));
+
+    for (auto const& ogs_mode_enum : ogs_mode_list) {
+      occa::stream defaultStream = mesh->device.getStream();
+      occa::stream kernelStream  = mesh->device.createStream();
+
+      // gs
+      timer::reset();
+      mesh->device.setStream(kernelStream);
+      mesh->device.finish();
+      MPI_Barrier(mesh->comm);
+      const double start = MPI_Wtime();
+      for(int test = 0; test < Ntests; ++test) {
+        mygsStart(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
+        if(dummyKernel) {
+          if(enabledTimer) timer::tic("dummyKernel");
+          kernel(Nlocal, o_U);
+          mesh->device.setStream(defaultStream);
+          if(enabledTimer) timer::toc("dummyKernel");
+        }
+        mygsFinish(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
+        if(enabledTimer) timer::update();
       }
-      mygsFinish(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
-      if(enabledTimer) timer::update();
-    }
-    mesh->device.finish();
-    mesh->device.setStream(defaultStream);
-    MPI_Barrier(mesh->comm);
-    const double elapsed = (MPI_Wtime() - start) / Ntests;
+      mesh->device.finish();
+      mesh->device.setStream(defaultStream);
+      MPI_Barrier(mesh->comm);
+      const double elapsed = (MPI_Wtime() - start) / Ntests;
 
-    // print stats
-    const int Ntimer = 10;
-    double etime[Ntimer];
-    if(enabledTimer) {
-      etime[0] = timer::query("gather_halo", "DEVICE:MAX");
-      etime[1] = timer::query("gs_interior", "DEVICE:MAX");
-      etime[2] = timer::query("scatter", "DEVICE:MAX");
-      etime[3] = timer::query("gs_host", "HOST:MAX");
-      etime[4] = timer::query("gs_memcpy_dh", "DEVICE:MAX");
-      etime[5] = timer::query("gs_memcpy_hd", "DEVICE:MAX");
-      etime[6] = timer::query("dummyKernel", "DEVICE:MAX");
-      etime[7] = timer::query("pw_exec", "HOST:MAX");
-      etime[8] = timer::query("pack", "DEVICE:MAX");
-      etime[9] = timer::query("unpack", "DEVICE:MAX");
-      for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
-    }
-
-    if(mesh->rank == 0 && !driverModus) {
-      int Nthreads =  omp_get_max_threads();
-      cout << "\nsummary\n"
-           << "  ogsMode                       : " << ogs_mode_enum << "\n"
-           << "  MPItasks                      : " << mesh->size << "\n";
-
-      if(options.compareArgs("THREAD MODEL", "OPENMP"))
-        cout << "  OMPthreads                    : " << Nthreads << "\n";
-
-      cout << "  polyN                         : " << N << "\n"
-           << "  Nelements                     : " << NX * NY * NZ << "\n"
-           << "  Nrepetitions                  : " << Ntests << "\n"
-           << "  floatType                     : " << floatType << "\n"
-           << "  throughput                    : " <<
-      ((double)(NX * NY * NZ) * N * N * N / elapsed) / 1.e9 << " GDOF/s\n"
-           << "  avg elapsed time              : " << elapsed << " s\n";
-
+      // print stats
+      const int Ntimer = 10;
+      double etime[Ntimer];
       if(enabledTimer) {
-        cout << "    gather halo                 : " << etime[0] << " s\n"
-             << "    gs interior                 : " << etime[1] << " s\n"
-             << "    scatter halo                : " << etime[2] << " s\n"
-             << "    memcpy host<->device        : " << etime[4] + etime[5] << " s\n";
+        etime[0] = timer::query("gather_halo", "DEVICE:MAX");
+        etime[1] = timer::query("gs_interior", "DEVICE:MAX");
+        etime[2] = timer::query("scatter", "DEVICE:MAX");
+        etime[3] = timer::query("gs_host", "HOST:MAX");
+        etime[4] = timer::query("gs_memcpy_dh", "DEVICE:MAX");
+        etime[5] = timer::query("gs_memcpy_hd", "DEVICE:MAX");
+        etime[6] = timer::query("dummyKernel", "DEVICE:MAX");
+        etime[7] = timer::query("pw_exec", "HOST:MAX");
+        etime[8] = timer::query("pack", "DEVICE:MAX");
+        etime[9] = timer::query("unpack", "DEVICE:MAX");
+        for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
+      }
 
-        if(ogs_mode_enum == OGS_DEFAULT)
-          cout << "    gslib_host                  : " << etime[3] << " s\n";
-        else
-          cout << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
-               << "    pw exec                     : " << etime[7] << " s\n";
+      if(mesh->rank == 0 && !driverModus) {
+        int Nthreads =  omp_get_max_threads();
+        cout << "\nsummary\n"
+            << "  ogsMode                       : " << ogs_mode_enum << "\n"
+            << "  MPItasks                      : " << mesh->size << "\n";
 
-        cout << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
+        if(options.compareArgs("THREAD MODEL", "OPENMP"))
+          cout << "  OMPthreads                    : " << Nthreads << "\n";
+
+        cout << "  polyN                         : " << N << "\n"
+            << "  Nelements                     : " << NX * NY * NZ << "\n"
+            << "  Nrepetitions                  : " << Ntests << "\n"
+            << "  floatType                     : " << floatType << "\n"
+            << "  throughput                    : " <<
+        ((double)(NX * NY * NZ) * N * N * N / elapsed) / 1.e9 << " GDOF/s\n"
+            << "  avg elapsed time              : " << elapsed << " s\n";
+
+        if(enabledTimer) {
+          cout << "    gather halo                 : " << etime[0] << " s\n"
+              << "    gs interior                 : " << etime[1] << " s\n"
+              << "    scatter halo                : " << etime[2] << " s\n"
+              << "    memcpy host<->device        : " << etime[4] + etime[5] << " s\n";
+
+          if(ogs_mode_enum == OGS_DEFAULT)
+            cout << "    gslib_host                  : " << etime[3] << " s\n";
+          else
+            cout << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
+                << "    pw exec                     : " << etime[7] << " s\n";
+
+          cout << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
+        }
       }
     }
   }

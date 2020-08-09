@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 
   options.setArgs("DRIVER MODUS", "FALSE");
 
-  gs(options, MPI_COMM_WORLD);
+  gs(options, MPI_COMM_WORLD, true, true);
 
   MPI_Finalize();
   return 0;
