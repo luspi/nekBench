@@ -6,73 +6,84 @@
 #include "../dot/dot.hpp"
 #include "../gs/gs.hpp"
 #include "../nekBone/nekBone.hpp"
+#include "../core/parReader.hpp"
 
-void driver(std::string inifile) {
-  
-  std::cout << "reading ini file: " << inifile << std::endl;
-  
-  int mpiRank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpiRank);
-  
-  if(mpiRank == 0) {
-    setupAide bwOptions;
-    bwOptions.setArgs("THREAD MODEL", "SERIAL");
-    bwOptions.setArgs("DRIVER MODUS", "TRUE");
-    bw(bwOptions);
+const std::vector<std::string> explode(const std::string& s, const char& c)
+{
+  std::string buff{""};
+  std::vector<std::string> v;
+
+  for(auto n:s) {
+    if(n != c) buff+=n; else
+    if(n == c && buff != "") { v.push_back(buff); buff = ""; }
   }
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
-  setupAide dotOptions;
-  dotOptions.setArgs("N", "7");
-  dotOptions.setArgs("N ELEMENTS", "1000");
-  dotOptions.setArgs("THREAD MODEL", "SERIAL");
-  dotOptions.setArgs("ARCH", "VOLTA");
-  dotOptions.setArgs("N TESTS", "100");
-  dotOptions.setArgs("DEVICE ID", "0");
-  dotOptions.setArgs("BLOCK SIZE", "256");
-  dotOptions.setArgs("GLOBAL", "0");
-  dotOptions.setArgs("DRIVER MODUS", "TRUE");
-  dot(dotOptions, MPI_COMM_WORLD);
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
-  setupAide gsOptions;
-  gsOptions.setArgs("THREAD MODEL", "SERIAL");
-  gsOptions.setArgs("N", "7");
-  gsOptions.setArgs("NX", "10");
-  gsOptions.setArgs("NY", "10");
-  gsOptions.setArgs("NZ", "10");
-  gsOptions.setArgs("OGS MODE", "0");
-  gsOptions.setArgs("NTESTS", "100");
-  gsOptions.setArgs("ENABLED TIMER", "0");
-  gsOptions.setArgs("DUMMY KERNEL", "0");
-  gsOptions.setArgs("FLOAT TYPE", "double");
-  gsOptions.setArgs("GPUMPI", "0");
-  gsOptions.setArgs("DEVICE NUMBER", "0");
-  gsOptions.setArgs("DRIVER MODUS", "TRUE");
-  gs(gsOptions, MPI_COMM_WORLD);
-    
-  MPI_Barrier(MPI_COMM_WORLD);
-  
-  if(mpiRank == 0) {
-    setupAide axhelmOptions;
-    axhelmOptions.setArgs("N", "7");
-    axhelmOptions.setArgs("NDIM", "1");
-    axhelmOptions.setArgs("NELEMENTS", "1000");
-    axhelmOptions.setArgs("THREAD MODEL", "SERIAL");
-    axhelmOptions.setArgs("ARCH", "VOLTA");
-    axhelmOptions.setArgs("BKMODE", "1");
-    axhelmOptions.setArgs("NTESTS", "100");
-    axhelmOptions.setArgs("KERNELVERSION", "0");
-    axhelmOptions.setArgs("DRIVER MODUS", "TRUE");
-    axhelm(axhelmOptions);
+  if(buff != "") v.push_back(buff);
+
+  return v;
+}
+
+void driver(std::string inifile, MPI_Comm comm) {
+
+  int mpiRank, mpiSize;
+  MPI_Comm_rank(comm, &mpiRank);
+  MPI_Comm_size(comm, &mpiSize);
+
+  ParRead parReader(inifile);
+
+  std::string benchmarks[5] = {"bw", "dot", "gs", "axhelm", "nekbone"};
+  for(int iBench = 0; iBench < 5; ++iBench) {
+
+    std::vector<setupAide> allopt = parReader.getOptions(benchmarks[iBench]);
+
+    for(int iOpt = 0; iOpt < allopt.size(); ++iOpt) {
+
+      bool enabled = (allopt[iOpt].compareArgs("ENABLED", "TRUE"));
+      if(!enabled) break;
+
+      int howManyMpiRanks;
+      if(allopt[iOpt].compareArgs("MPI", "MAX"))
+        howManyMpiRanks = std::min(mpiSize, 512);
+      else
+        howManyMpiRanks = std::min(std::stoi(allopt[iOpt].getArgs("MPI")), 512);
+
+      MPI_Comm subComm;
+
+      if(howManyMpiRanks == mpiSize) {
+        MPI_Comm_dup(comm, &subComm);
+      } else {
+
+        MPI_Group worldGroup;
+        MPI_Comm_group(comm, &worldGroup);
+
+        int listRanks[howManyMpiRanks];
+        for(int i = 0; i < howManyMpiRanks; ++i)
+          listRanks[i] = i;
+
+        MPI_Group subGroup;
+        MPI_Group_incl(worldGroup, howManyMpiRanks, listRanks, &subGroup);
+
+        MPI_Comm_create_group(comm, subGroup, 0, &subComm);
+
+      }
+
+      if(mpiRank < howManyMpiRanks) {
+        if(iBench == 0) {
+          bw(allopt[iOpt]);
+        } else if(iBench == 1) {
+          dot(allopt[iOpt], subComm);
+        } else if(iBench == 2) {
+          gs(allopt[iOpt], subComm);
+        } else if(iBench == 3) {
+          axhelm(allopt[iOpt]);
+        } else if(iBench == 4) {
+          nekBone(allopt[iOpt]);
+        }
+      }
+
+      MPI_Barrier(comm);
+
+    }
+
   }
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
-  setupAide nekBoneOptions(inifile);
-  nekBoneOptions.setArgs("DRIVER MODUS", "TRUE");
-  nekBone(nekBoneOptions);
   
 }

@@ -14,7 +14,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  driver(argv[1]);
+  driver(argv[1], MPI_COMM_WORLD);
 
   MPI_Finalize();
   return 0;

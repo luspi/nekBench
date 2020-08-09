@@ -40,7 +40,7 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool
   if(mesh->rank == 0 && driverModus) {
 
     std::stringstream fname;
-    fname << "nekBone_" << mesh->Nelements << "_elements_" << mesh->size << "_ranks.txt";
+    fname << "nekBone_N_" << mesh->N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
     *driverFile = fopen(fname.str().c_str(), "w");
 
     std::cout << "nekBone: writing results to " << fname.str() << std::endl;

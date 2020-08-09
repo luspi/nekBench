@@ -262,8 +262,8 @@ void gs(setupAide &options, MPI_Comm mpiComm) {
   if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
   if(ogs->localGatherIds) free(ogs->localGatherIds);
   if(ogs->invDegree) free(ogs->invDegree);
-  // calling ogsFree() on ogs causes crash.
-  // As much as possible the memory inside ogs is freed manually, so that we simply decrease the ref counter here.
+  // Calling ogsFree() on ogs causes a crash.
+  // As much as possible of the memory inside ogs is freed manually, so that we simply resort to decreasing the ref counter here.
   ogs::Nrefs--;
   meshDestroy(mesh);
 

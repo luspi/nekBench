@@ -1,5 +1,6 @@
 #include "omp.h"
 #include "BP.hpp"
+#include "ogsKernels.hpp"
 
 int solve(BP_t* BP,
           occa::memory &o_lambda,
@@ -243,5 +244,7 @@ void nekBone(setupAide &options) {
 
   BPDestroy(BP);
   meshDestroy(mesh);
+  ogs::Nrefs--;
+  ogs::Nrefs--;
 
 }
