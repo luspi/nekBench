@@ -38,6 +38,7 @@ AOBJS    = \
 ../gs/mygs.o \
 ../gs/gs.o \
 ../dot/dot.o \
+../allred/allred.o \
 ../bw/bw.o \
 ../axhelm/axhelm.o \
 ../axhelm/kernelHelper.o \

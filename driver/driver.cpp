@@ -4,6 +4,7 @@
 #include "../axhelm/axhelm.hpp"
 #include "../bw/bw.hpp"
 #include "../dot/dot.hpp"
+#include "../allred/allred.hpp"
 #include "../gs/gs.hpp"
 #include "../nekBone/nekBone.hpp"
 #include "../core/parReader.hpp"
@@ -30,8 +31,9 @@ void driver(std::string inifile, MPI_Comm comm) {
 
   ParRead parReader(inifile);
 
-  std::string benchmarks[6] = {"bw", "dot", "ogs", "pingpong", "axhelm", "nekbone"};
-  for(int iBench = 0; iBench < 6; ++iBench) {
+  int numBench = 7;
+  std::string benchmarks[numBench] = {"bw", "dot", "allreduce", "ogs", "pingpong", "axhelm", "nekbone"};
+  for(int iBench = 0; iBench < numBench; ++iBench) {
 
     std::vector<setupAide> allopt = parReader.getOptions(benchmarks[iBench]);
 
@@ -67,17 +69,19 @@ void driver(std::string inifile, MPI_Comm comm) {
       }
 
       if(mpiRank < howManyMpiRanks) {
-        if(iBench == 0) {
+        if(benchmarks[iBench] == "bw") {
           bw(allopt[iOpt]);
-        } else if(iBench == 1) {
+        } else if(benchmarks[iBench] == "dot") {
           dot(allopt[iOpt], subComm);
-        } else if(iBench == 2) {
+        } else if(benchmarks[iBench] == "allreduce") {
+          allred(allopt[iOpt], subComm);
+        } else if(benchmarks[iBench] == "ogs") {
           gs(allopt[iOpt], subComm, true, false);
-        } else if(iBench == 3) {
+        } else if(benchmarks[iBench] == "pingpong") {
           gs(allopt[iOpt], subComm, false, true);
-        } else if(iBench == 4) {
+        } else if(benchmarks[iBench] == "axhelm") {
           axhelm(allopt[iOpt]);
-        } else if(iBench == 5) {
+        } else if(benchmarks[iBench] == "nekbone") {
           nekBone(allopt[iOpt]);
         }
       }

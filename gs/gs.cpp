@@ -229,16 +229,22 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
         for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
       }
 
-      if(mesh->rank == 0 && !driverModus) {
+      if(mesh->rank == 0) {
+
+        FILE *outputFile;
+        if(driverModus) {
+          std::stringstream fname;
+          fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
+          outputFile = fopen(fname.str().c_str(), "w");
+          std::cout << "ogs: writing results to " << fname.str() << std::endl;
+        }
+
         int Nthreads =  omp_get_max_threads();
-        cout << "\nsummary\n"
+        std::stringstream out;
+        out << "\nsummary\n"
             << "  ogsMode                       : " << ogs_mode_enum << "\n"
-            << "  MPItasks                      : " << mesh->size << "\n";
-
-        if(options.compareArgs("THREAD MODEL", "OPENMP"))
-          cout << "  OMPthreads                    : " << Nthreads << "\n";
-
-        cout << "  polyN                         : " << N << "\n"
+            << "  MPItasks                      : " << mesh->size << "\n"
+            << "  polyN                         : " << N << "\n"
             << "  Nelements                     : " << NX * NY * NZ << "\n"
             << "  Nrepetitions                  : " << Ntests << "\n"
             << "  floatType                     : " << floatType << "\n"
@@ -247,19 +253,26 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
             << "  avg elapsed time              : " << elapsed << " s\n";
 
         if(enabledTimer) {
-          cout << "    gather halo                 : " << etime[0] << " s\n"
+          out << "    gather halo                 : " << etime[0] << " s\n"
               << "    gs interior                 : " << etime[1] << " s\n"
               << "    scatter halo                : " << etime[2] << " s\n"
               << "    memcpy host<->device        : " << etime[4] + etime[5] << " s\n";
 
           if(ogs_mode_enum == OGS_DEFAULT)
-            cout << "    gslib_host                  : " << etime[3] << " s\n";
+            out << "    gslib_host                  : " << etime[3] << " s\n";
           else
-            cout << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
+            out << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
                 << "    pw exec                     : " << etime[7] << " s\n";
 
-          cout << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
+          out << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
+
+          if(!driverModus)
+            std::cout << out.str();
+          else
+            fprintf(outputFile, out.str().c_str());
+
         }
+        fclose(outputFile);
       }
     }
   }

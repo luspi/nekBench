@@ -98,6 +98,8 @@ void allred(setupAide &options, MPI_Comm mpiComm) {
         printf("%-10d %-10d %-10f\n", size, Ntests, elapsed/(double)Ntests);
     }
 
+    o_mem_send.free();
+    o_mem_recv.free();
 
   }
 
