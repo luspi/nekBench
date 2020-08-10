@@ -17,7 +17,7 @@ namespace dA {
 
 static occa::kernel axKernel;
 
-void axhelm(setupAide &options) {
+void axhelm(setupAide &options, MPI_Comm mpiComm) {
 
   const int N = std::stoi(options.getArgs("N"));
   const int Ndim = std::stoi(options.getArgs("NDIM"));
@@ -30,8 +30,8 @@ void axhelm(setupAide &options) {
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
   int rank = 0, size = 1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(mpiComm, &rank);
+  MPI_Comm_size(mpiComm, &size);
 
   const int deviceId = 0;
   const int platformId = 0;
@@ -97,7 +97,7 @@ void axhelm(setupAide &options) {
   if(BKmode) kernelName = "axhelm_bk";
   if(Ndim > 1) kernelName += "_n" + std::to_string(Ndim);
   kernelName += "_v" + std::to_string(kernelVersion);
-  axKernel = loadAxKernel(device, threadModel, arch, kernelName, N, Nelements);
+  axKernel = loadAxKernel(device, threadModel, arch, kernelName, N, Nelements, mpiComm);
 
   // populate device arrays
   dfloat* ggeo = dA::drandAlloc(Np * Nelements * p_Nggeo);
@@ -121,14 +121,14 @@ void axhelm(setupAide &options) {
   // run kernel
   axKernel(Nelements, offset, o_ggeo, o_DrV, o_lambda, o_q, o_Aq);
   device.finish();
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(mpiComm);
   const double start = MPI_Wtime();
 
   for(int test = 0; test < Ntests; ++test)
     axKernel(Nelements, offset, o_ggeo, o_DrV, o_lambda, o_q, o_Aq);
 
   device.finish();
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(mpiComm);
   const double elapsed = (MPI_Wtime() - start) / Ntests;
 
   // check for correctness
@@ -143,7 +143,7 @@ void axhelm(setupAide &options) {
     dfloat diff = fabs(q[n] - Aq[n]);
     maxDiff = (maxDiff < diff) ? diff:maxDiff;
   }
-  MPI_Allreduce(MPI_IN_PLACE, &maxDiff, 1, MPI_DFLOAT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &maxDiff, 1, MPI_DFLOAT, MPI_SUM, mpiComm);
   if (rank == 0) {
     std::stringstream out;
     out << "Correctness check: maxError = " << maxDiff << "\n";

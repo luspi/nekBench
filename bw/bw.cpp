@@ -11,7 +11,7 @@
 #include "setupAide.hpp"
 #include "setCompilerFlags.hpp"
 
-void bw(setupAide &options) {
+void bw(setupAide &options, MPI_Comm mpiComm) {
     
   const int deviceId = 0;
   const int platformId = 0;
@@ -72,7 +72,7 @@ void bw(setupAide &options) {
   setCompilerFlags(device, props);
   occa::kernel triadKernel = device.buildKernel(DBP "kernel/triad.okl", "triad", props);
 
-  timer::init(MPI_COMM_WORLD, device, 0);
+  timer::init(mpiComm, device, 0);
 
   {
     const int Ntests = 1000;

@@ -2,10 +2,10 @@
 
 static occa::kernel loadAxKernel(occa::device device, const std::string threadModel,
                                  const std::string arch, std::string kernelName,
-                                 int N, dlong Nelements)
+                                 int N, dlong Nelements, MPI_Comm mpiComm)
 {
   int rank = 1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(mpiComm, &rank);
 
   const int Nq = N + 1;
   const int Np = Nq * Nq * Nq;
@@ -52,7 +52,7 @@ static occa::kernel loadAxKernel(occa::device device, const std::string threadMo
         axKernel = device.buildKernel(filename + ".okl", kernelName, props);
       }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(mpiComm);
   }
   return axKernel;
 }

@@ -422,8 +422,8 @@ void meshInterpolateTet3D(dfloat* I, dfloat* x, int N, dfloat* Ix, int M);
 
 #define norm3(a,b,c) ( sqrt((a) * (a) + (b) * (b) + (c) * (c)) )
 
-mesh3D* meshSetupBoxHex3D(int N, int cubN, setupAide &options);
-mesh3D* meshSetupBoxTet3D(int N, int cubN, setupAide &options);
+mesh3D* meshSetupBoxHex3D(int N, int cubN, setupAide &options, MPI_Comm comm);
+mesh3D* meshSetupBoxTet3D(int N, int cubN, setupAide &options, MPI_Comm comm);
 
 void meshConnectPeriodicFaceNodes3D(mesh3D* mesh, dfloat xper, dfloat yper, dfloat zper);
 

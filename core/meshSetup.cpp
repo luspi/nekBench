@@ -28,6 +28,7 @@
 #include "mpi.h"
 #include "mesh.h"
 #include "setCompilerFlags.hpp"
+#include "ogsKernels.hpp"
 
 #include "gslib.h"
 
@@ -2277,16 +2278,16 @@ void meshChooseBoxDimensions(hlong Nelements, int* NX, int* NY, int* NZ)
   *NZ = bestNZ;
 }
 
-mesh3D* meshSetupBoxHex3D(int N, int cubN, setupAide &options)
+mesh3D* meshSetupBoxHex3D(int N, int cubN, setupAide &options, MPI_Comm mpiComm)
 {
   mesh_t* mesh = new mesh_t();
 
   int rank, size;
 
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(mpiComm, &rank);
+  MPI_Comm_size(mpiComm, &size);
 
-  MPI_Comm_dup(MPI_COMM_WORLD, &mesh->comm);
+  MPI_Comm_dup(mpiComm, &mesh->comm);
 
   mesh->rank = rank;
   mesh->size = size;
@@ -2465,16 +2466,16 @@ mesh3D* meshSetupBoxHex3D(int N, int cubN, setupAide &options)
   return mesh;
 }
 
-mesh3D* meshSetupBoxTet3D(int N, int cubN, setupAide &options)
+mesh3D* meshSetupBoxTet3D(int N, int cubN, setupAide &options, MPI_Comm mpiComm)
 {
   mesh_t* mesh = new mesh_t();
 
   int rank, size;
 
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(mpiComm, &rank);
+  MPI_Comm_size(mpiComm, &size);
 
-  MPI_Comm_dup(MPI_COMM_WORLD, &mesh->comm);
+  MPI_Comm_dup(mpiComm, &mesh->comm);
 
   mesh->rank = rank;
   mesh->size = size;
@@ -3381,8 +3382,8 @@ void parallelSort(int size, int rank, MPI_Comm comm,
 {
 #if 0
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
 #endif
 
   /* cast void * to char * */
@@ -3825,6 +3826,7 @@ void meshDestroy(mesh_t *mesh) {
   free(mesh->D);
   free(mesh->filterMatrix);
   free(mesh->elementInfo);
+  ogs::Nrefs--;
   delete mesh;
 
 }

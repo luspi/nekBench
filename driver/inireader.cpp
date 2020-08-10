@@ -1,12 +1,12 @@
-#include "parReader.hpp"
+#include "inireader.hpp"
 
-ParRead::ParRead(std::string &inifile) {
+IniReader::IniReader(std::string &inifile) {
 
   read(inifile);
 
 }
 
-void ParRead::read(std::string &inifile) {
+void IniReader::read(std::string &inifile) {
 
   std::ifstream infile(inifile);
 
@@ -63,7 +63,7 @@ void ParRead::read(std::string &inifile) {
 
 }
 
-void ParRead::generateOptions(setupAide &inOpt, setupAide outOpt, std::vector<std::string> processed, int benchIndex) {
+void IniReader::generateOptions(setupAide &inOpt, setupAide outOpt, std::vector<std::string> processed, int benchIndex) {
 
   std::vector<std::string> inKey = inOpt.getKeyword();
   for(size_t i = 0; i < inKey.size(); ++i) {
@@ -93,7 +93,7 @@ void ParRead::generateOptions(setupAide &inOpt, setupAide outOpt, std::vector<st
 
 }
 
-const std::vector<std::string> ParRead::explode(const std::string& s, const char& c) {
+const std::vector<std::string> IniReader::explode(const std::string& s, const char& c) {
   std::string buff{""};
   std::vector<std::string> v;
 
@@ -106,7 +106,7 @@ const std::vector<std::string> ParRead::explode(const std::string& s, const char
   return v;
 }
 
-std::vector<setupAide> &ParRead::getOptions(std::string benchmark) {
+std::vector<setupAide> &IniReader::getOptions(std::string benchmark) {
 
   std::transform(benchmark.begin(), benchmark.end(), benchmark.begin(), ::tolower);
 

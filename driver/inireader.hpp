@@ -8,7 +8,7 @@
 #include <mpi.h>
 #include "setupAide.hpp"
 
-class ParRead {
+class IniReader {
 
 private:
   std::vector<setupAide> _options;  // the unprocessed options
@@ -21,7 +21,7 @@ private:
   const std::vector<std::string> explode(const std::string& s, const char& c);
 
 public:
-  ParRead(std::string &inifile);
+  IniReader(std::string &inifile);
   std::vector<setupAide> &getOptions(std::string benchmark);
 
 };

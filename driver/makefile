@@ -51,7 +51,7 @@ LOBJS = \
 ../core/meshSetup.o \
 ../core/meshBasis.o \
 ../core/setupAide.o \
-../core/parReader.o
+./inireader.o
 
 .PHONY: all install clean realclean
 

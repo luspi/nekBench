@@ -67,7 +67,7 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
   options.setArgs("POLYNOMIAL DEGREE", std::to_string(N));
 
   // setup mesh
-  mesh_t* mesh = meshSetupBoxHex3D(N, 0, options);
+  mesh_t* mesh = meshSetupBoxHex3D(N, 0, options, mpiComm);
   mesh->elementType = HEXAHEDRA;
   occa::properties kernelInfo;
   meshOccaSetup3D(mesh, options, kernelInfo);
@@ -290,6 +290,7 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
   if(ogs->invDegree) free(ogs->invDegree);
   // Calling ogsFree() on ogs causes a crash.
   // As much as possible of the memory inside ogs is freed manually, so that we simply resort to decreasing the ref counter here.
+  // valgrind reports no error leaks here.
   ogs::Nrefs--;
   meshDestroy(mesh);
 

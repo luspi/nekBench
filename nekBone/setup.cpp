@@ -28,6 +28,7 @@
 #include "BP.hpp"
 #include "../axhelm/kernelHelper.cpp"
 #include "timer.hpp"
+#include "ogsKernels.hpp"
 
 static occa::memory p_tmp;
 
@@ -506,6 +507,7 @@ void BPDestroy(BP_t *BP) {
   if(BP->o_solveWorkspace) delete[] BP->o_solveWorkspace;
   if(BP->BPKernel) delete[] BP->BPKernel;
   BP->mesh->device.free();
+  ogs::Nrefs--;
   delete BP;
 
 }

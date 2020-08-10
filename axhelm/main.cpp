@@ -23,7 +23,7 @@ int main(int argc, char** argv)
   options.setArgs("KERNELVERSION", (argc > 8 ? argv[8] : "0"));
   options.setArgs("DRIVER MODUS", "FALSE");
 
-  axhelm(options);
+  axhelm(options, MPI_COMM_WORLD);
 
   MPI_Finalize();
   exit(0);

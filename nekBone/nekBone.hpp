@@ -1,3 +1,3 @@
 #include "setupAide.hpp"
 
-void nekBone(setupAide &options);
+void nekBone(setupAide &options, MPI_Comm mpiComm);

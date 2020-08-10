@@ -7,7 +7,7 @@
 #include "../allred/allred.hpp"
 #include "../gs/gs.hpp"
 #include "../nekBone/nekBone.hpp"
-#include "../core/parReader.hpp"
+#include "./inireader.hpp"
 
 const std::vector<std::string> explode(const std::string& s, const char& c)
 {
@@ -29,13 +29,13 @@ void driver(std::string inifile, MPI_Comm comm) {
   MPI_Comm_rank(comm, &mpiRank);
   MPI_Comm_size(comm, &mpiSize);
 
-  ParRead parReader(inifile);
+  IniReader iniReader(inifile);
 
   int numBench = 7;
   std::string benchmarks[numBench] = {"bw", "dot", "allreduce", "ogs", "pingpong", "axhelm", "nekbone"};
   for(int iBench = 0; iBench < numBench; ++iBench) {
 
-    std::vector<setupAide> allopt = parReader.getOptions(benchmarks[iBench]);
+    std::vector<setupAide> allopt = iniReader.getOptions(benchmarks[iBench]);
 
     for(int iOpt = 0; iOpt < allopt.size(); ++iOpt) {
 
@@ -70,7 +70,7 @@ void driver(std::string inifile, MPI_Comm comm) {
 
       if(mpiRank < howManyMpiRanks) {
         if(benchmarks[iBench] == "bw") {
-          bw(allopt[iOpt]);
+          bw(allopt[iOpt], subComm);
         } else if(benchmarks[iBench] == "dot") {
           dot(allopt[iOpt], subComm);
         } else if(benchmarks[iBench] == "allreduce") {
@@ -80,9 +80,9 @@ void driver(std::string inifile, MPI_Comm comm) {
         } else if(benchmarks[iBench] == "pingpong") {
           gs(allopt[iOpt], subComm, false, true);
         } else if(benchmarks[iBench] == "axhelm") {
-          axhelm(allopt[iOpt]);
+          axhelm(allopt[iOpt], subComm);
         } else if(benchmarks[iBench] == "nekbone") {
-          nekBone(allopt[iOpt]);
+          nekBone(allopt[iOpt], subComm);
         }
       }
 

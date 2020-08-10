@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 
   options.setArgs("DRIVER MODUS", "FALSE");
 
-  nekBone(options);
+  nekBone(options, MPI_COMM_WORLD);
 
   MPI_Finalize();
   return 0;

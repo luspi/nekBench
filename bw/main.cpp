@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   setupAide options;
   options.setArgs("THREAD MODEL", argv[1]);
   options.setArgs("DRIVER MODUS", "FALSE");
-  bw(options);
+  bw(options, MPI_COMM_WORLD);
 
   MPI_Finalize();
   exit(0);

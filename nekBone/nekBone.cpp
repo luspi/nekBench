@@ -1,6 +1,5 @@
 #include "omp.h"
 #include "BP.hpp"
-#include "ogsKernels.hpp"
 
 int solve(BP_t* BP,
           occa::memory &o_lambda,
@@ -36,7 +35,7 @@ int solve(BP_t* BP,
   return Niter;
 }
 
-void nekBone(setupAide &options) {
+void nekBone(setupAide &options, MPI_Comm mpiComm) {
 
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
@@ -71,7 +70,7 @@ void nekBone(setupAide &options) {
   mesh_t* mesh;
 
   // set up mesh
-  mesh = meshSetupBoxHex3D(N, cubN, options);
+  mesh = meshSetupBoxHex3D(N, cubN, options, mpiComm);
   mesh->elementType = elementType;
 
   // set up
@@ -244,7 +243,5 @@ void nekBone(setupAide &options) {
 
   BPDestroy(BP);
   meshDestroy(mesh);
-  ogs::Nrefs--;
-  ogs::Nrefs--;
 
 }
