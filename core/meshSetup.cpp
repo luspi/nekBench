@@ -3829,7 +3829,8 @@ void meshDestroy(mesh_t *mesh) {
   free(mesh->D);
   free(mesh->filterMatrix);
   free(mesh->elementInfo);
-  ogs::Nrefs--;
+  mesh->device.free();
+  ogs::Nrefs = 0;
   delete mesh;
 
 }

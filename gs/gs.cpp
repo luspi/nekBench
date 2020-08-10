@@ -272,7 +272,8 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
             fprintf(outputFile, out.str().c_str());
 
         }
-        fclose(outputFile);
+        if(driverModus)
+          fclose(outputFile);
       }
     }
   }
@@ -288,10 +289,6 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
   if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
   if(ogs->localGatherIds) free(ogs->localGatherIds);
   if(ogs->invDegree) free(ogs->invDegree);
-  // Calling ogsFree() on ogs causes a crash.
-  // As much as possible of the memory inside ogs is freed manually, so that we simply resort to decreasing the ref counter here.
-  // valgrind reports no error leaks here.
-  ogs::Nrefs--;
   meshDestroy(mesh);
 
 }
