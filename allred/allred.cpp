@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include "mpi.h"
 #include "occa.hpp"
-#include "timer.hpp"
 #include "setupAide.hpp"
 #include "setCompilerFlags.hpp"
 
@@ -58,40 +57,39 @@ void allred(setupAide &options, MPI_Comm mpiComm) {
   device.setup(deviceConfigString);
   occa::env::OCCA_MEM_BYTE_ALIGN = USE_OCCA_MEM_BYTE_ALIGN;
 
-  std::stringstream outMode;
-  outMode << "active occa mode: " << device.mode() << "\n\n";
-  if(driverModus) {
-    fprintf(outputFile, outMode.str().c_str());
-    fflush(outputFile);
-  } else {
-    printf(outMode.str().c_str());
-    fflush(stdout);
+  if(mpiRank == 0) {
+    std::stringstream outMode;
+    outMode << "active occa mode: " << device.mode() << "\n\n";
+    if(driverModus) {
+      fprintf(outputFile, outMode.str().c_str());
+      fflush(outputFile);
+    } else {
+      printf(outMode.str().c_str());
+      fflush(stdout);
+    }
   }
-
-  timer::init(mpiComm, device, 0);
 
   int max_message_size = 1e6;
   int Ntests = 100;
 
   for(int size = 1; size < max_message_size; size = (((int)(size*1.05)>size) ? (int)(size*1.05) : size+1)) {
-
+    
     occa::memory o_mem_send = device.malloc(size * sizeof(double));
     occa::memory o_mem_recv = device.malloc(size * sizeof(double));
     device.finish();
     MPI_Barrier(mpiComm);
-    timer::reset("allreduce");
-    timer::tic("allreduce");
-
+    
+    double t1 = MPI_Wtime();
+    
     for(int test = 0; test < Ntests; ++test)
       MPI_Allreduce(o_mem_send.ptr(), o_mem_recv.ptr(), size, MPI_DOUBLE, MPI_SUM, mpiComm);
-
+    
     device.finish();
     MPI_Barrier(mpiComm);
-    timer::toc("allreduce");
-    timer::update();
-
+    double t2 = MPI_Wtime();
+    
     if(mpiRank == 0) {
-      double elapsed = timer::query("allreduce", "HOST:MAX") / Ntests;
+      double elapsed = (t2-t1) / Ntests;
       if(driverModus)
         fprintf(outputFile, "%-10d %-10d %-10f\n", size, Ntests, elapsed/(double)Ntests);
       else
@@ -103,7 +101,7 @@ void allred(setupAide &options, MPI_Comm mpiComm) {
 
   }
 
-  if(driverModus)
+  if(driverModus && mpiRank == 0)
     fclose(outputFile);
 
 }
