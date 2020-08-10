@@ -1431,6 +1431,7 @@ void meshOccaPopulateDevice3D(mesh3D* mesh, setupAide &newOptions, occa::propert
     mesh->o_filterMatrix = mesh->device.malloc(mesh->Nq * mesh->Nq * sizeof(dfloat),
                                                mesh->filterMatrix);
 
+/*
     mesh->o_vgeo =
       mesh->device.malloc(mesh->Nelements * mesh->Np * mesh->Nvgeo * sizeof(dfloat),
                           mesh->vgeo);
@@ -1438,11 +1439,12 @@ void meshOccaPopulateDevice3D(mesh3D* mesh, setupAide &newOptions, occa::propert
     mesh->o_sgeo =
       mesh->device.malloc(mesh->Nelements * mesh->Nfaces * mesh->Nfp * mesh->Nsgeo * sizeof(dfloat),
                           mesh->sgeo);
+*/
 
     mesh->o_ggeo =
       mesh->device.malloc(mesh->Nelements * mesh->Np * mesh->Nggeo * sizeof(dfloat),
                           mesh->ggeo);
-
+/*
     mesh->o_cubvgeo =
       mesh->device.malloc(mesh->Nelements * mesh->Nvgeo * mesh->cubNp * sizeof(dfloat),
                           mesh->cubvgeo);
@@ -1451,6 +1453,7 @@ void meshOccaPopulateDevice3D(mesh3D* mesh, setupAide &newOptions, occa::propert
       mesh->device.malloc(mesh->Nelements * mesh->Nfaces * mesh->cubNfp * mesh->Nsgeo *
                           sizeof(dfloat),
                           mesh->cubsgeo);
+*/
   }
 
   if(mesh->elementType == TETRAHEDRA) {
