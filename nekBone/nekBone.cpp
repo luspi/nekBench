@@ -100,7 +100,7 @@ void nekBone(setupAide &options, MPI_Comm mpiComm) {
     // warm up  + correctness check
     BP->vecScaleKernel(BP->Nfields*BP->fieldOffset, 0.0, BP->o_x); // reset 
     BP->o_r.copyFrom(BP->r); // reset rhs
-    it = solve(BP, BP->o_lambda, tol, BP->o_r, BP->o_x, &opElapsed);
+    it = solve(BP, BP->o_lambda, tol, BP->o_r, BP->o_x, &opElapsed, driverModus, outputFile);
     BP->o_x.copyTo(BP->x);
     const dlong offset = BP->fieldOffset;
     dfloat maxError = 0;
@@ -146,7 +146,7 @@ void nekBone(setupAide &options, MPI_Comm mpiComm) {
       mesh->device.finish();
       MPI_Barrier(mesh->comm);
       double start = MPI_Wtime();
-      it = solve(BP, BP->o_lambda, tol, BP->o_r, BP->o_x, &opElapsed);
+      it = solve(BP, BP->o_lambda, tol, BP->o_r, BP->o_x, &opElapsed, driverModus, outputFile);
       MPI_Barrier(mesh->comm);
       elapsed += MPI_Wtime() - start;
       timer::update();

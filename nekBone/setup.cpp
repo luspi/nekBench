@@ -349,7 +349,8 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
                                  arch,
                                  kernelName,
                                  mesh->N,
-                                 mesh->Nelements);
+                                 mesh->Nelements, 
+                                 mesh->comm);
 
 /*
   BP->ogs = ogsSetup(Ntotal, mesh->maskedGlobalIds, mesh->comm, 1, mesh->device);
@@ -407,8 +408,6 @@ void BPDestroy(BP_t *BP) {
   if(BP->recvBuffer) free(BP->recvBuffer);
   if(BP->gradSendBuffer) free(BP->gradSendBuffer);
   if(BP->gradRecvBuffer) free(BP->gradRecvBuffer);
-  if(BP->tmpNormr) free(BP->tmpNormr);
-  if(BP->tmpAtomic) free(BP->tmpAtomic);
   if(BP->mesh->maskedGlobalIds) free(BP->mesh->maskedGlobalIds);
   if(BP->mesh->globalGatherElementList) free(BP->mesh->globalGatherElementList);
   if(BP->mesh->localGatherElementList) free(BP->mesh->localGatherElementList);
