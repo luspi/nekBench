@@ -45,7 +45,7 @@ void nekBone(setupAide &options, MPI_Comm mpiComm) {
 
   options.getArgs("POLYNOMIAL DEGREE", N);
   int cubN = 0;
-
+  
   options.setArgs("BOX XMIN", "-1.0");
   options.setArgs("BOX YMIN", "-1.0");
   options.setArgs("BOX ZMIN", "-1.0");

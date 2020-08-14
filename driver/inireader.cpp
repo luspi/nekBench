@@ -78,7 +78,18 @@ void IniReader::generateOptions(setupAide &inOpt, setupAide outOpt, std::vector<
 
       for(size_t j = 0; j < parts.size(); ++j) {
 
-        outOpt.setArgs(inKey[i], parts[j]);
+        size_t found = inKey[i].find("/");
+        if(found != std::string::npos) {
+
+          std::vector<std::string> optParts = explode(inKey[i], *"/");
+          std::vector<std::string> valParts = explode(parts[j], *"/");
+
+          for(int k = 0; k < optParts.size(); ++k)
+            outOpt.setArgs(optParts[k], valParts[k]);
+
+        } else
+          outOpt.setArgs(inKey[i], parts[j]);
+
         generateOptions(inOpt, outOpt, processed, benchIndex);
 
       }

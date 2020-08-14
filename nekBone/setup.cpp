@@ -408,13 +408,11 @@ void BPDestroy(BP_t *BP) {
   if(BP->recvBuffer) free(BP->recvBuffer);
   if(BP->gradSendBuffer) free(BP->gradSendBuffer);
   if(BP->gradRecvBuffer) free(BP->gradRecvBuffer);
-  if(BP->mesh->maskedGlobalIds) free(BP->mesh->maskedGlobalIds);
-  if(BP->mesh->globalGatherElementList) free(BP->mesh->globalGatherElementList);
-  if(BP->mesh->localGatherElementList) free(BP->mesh->localGatherElementList);
   if(BP->o_solveWorkspace) delete[] BP->o_solveWorkspace;
   if(BP->BPKernel) delete[] BP->BPKernel;
   BP->mesh->device.free();
   ogs::Nrefs = 0;
+  ogs::freeKernels();
   delete BP;
 
 }
