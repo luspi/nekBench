@@ -23,7 +23,7 @@ global = 0
 [ALLREDUCE]
 enabled = true
 MPI = max
-thread model = SERIAL,CUDA
+thread model = SERIAL
 
 [OGS]
 enabled = true
