@@ -428,8 +428,8 @@ std::vector<libParanumal::setupAide> parRead(std::string &setupFile, MPI_Comm co
     options[6].setArgs("POLYNOMIAL DEGREE", nbPD);
 
   std::string nbNXYZ = "";
-  if(ini.extract("nekbone", "nx/ny/nz", nbNXYZ))
-    options[6].setArgs("NX/NY/NZ", nbNXYZ);
+  if(ini.extract("nekbone", "box nx/box ny/box nz", nbNXYZ))
+    options[6].setArgs("BOX NX/BOX NY/BOX NZ", nbNXYZ);
 
   std::string nbKID = "";
   if(ini.extract("nekbone", "kernel id", nbKID))
