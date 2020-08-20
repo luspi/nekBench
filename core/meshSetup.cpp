@@ -3830,6 +3830,7 @@ void meshDestroy(mesh_t *mesh) {
   free(mesh->filterMatrix);
   free(mesh->elementInfo);
   mesh->device.free();
+  ogsFree(mesh->ogs);
   delete mesh;
 
 }
