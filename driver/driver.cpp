@@ -96,7 +96,7 @@ void driver(std::string parfile, MPI_Comm comm) {
       if(!enabled) break;
 
       int howManyMpiRanks;
-      if(allopt[iOpt].compareArgs("MPI", "max"))
+      if(allopt[iOpt].compareArgs("MPI", "max") || allopt[iOpt].compareArgs("MPI", "MAX"))
         howManyMpiRanks = std::min(mpiSize, 512);
       else
         howManyMpiRanks = std::min(std::stoi(allopt[iOpt].getArgs("MPI")), 512);

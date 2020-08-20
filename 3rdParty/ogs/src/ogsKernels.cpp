@@ -190,14 +190,15 @@ void ogs::initKernels(MPI_Comm comm, occa::device device) {
   if(device.mode()=="OpenCL"){
    //ogs::kernelInfo["compiler_flags"] += "-cl-opt-disable";
   }
-
+  
   if(device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
    ogs::kernelInfo["compiler_flags"] = " --ftz=true ";
    ogs::kernelInfo["compiler_flags"] += " --prec-div=false ";
    ogs::kernelInfo["compiler_flags"] += " --prec-sqrt=false ";
    ogs::kernelInfo["compiler_flags"] += " --use_fast_math ";
    ogs::kernelInfo["compiler_flags"] += " --fmad=true "; // compiler option for cuda
-  }
+  } else
+    ogs::kernelInfo["compiler_flags"] = "";
 
   if (rank==0) printf("Compiling GatherScatter Kernels...");fflush(stdout);
 

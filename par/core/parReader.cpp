@@ -242,15 +242,15 @@ std::vector<libParanumal::setupAide> parRead(std::string &setupFile, MPI_Comm co
   // check allreduce options
 
   bool allredEnabled = true;
-  if(ini.extract("allred", "enabled", allredEnabled))
+  if(ini.extract("allreduce", "enabled", allredEnabled))
     options[2].setArgs("ENABLED", (allredEnabled ? "TRUE" : "FALSE"));
 
   std::string allredMPI = "";
-  if(ini.extract("allred", "mpi", allredMPI))
+  if(ini.extract("allreduce", "mpi", allredMPI))
     options[2].setArgs("MPI", allredMPI);
 
   std::string allredTM = "";
-  if(ini.extract("allred", "thread model", allredTM)) {
+  if(ini.extract("allreduce", "thread model", allredTM)) {
     UPPER(allredTM);
     options[2].setArgs("THREAD MODEL", allredTM);
   }
