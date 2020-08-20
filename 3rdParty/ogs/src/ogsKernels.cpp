@@ -192,7 +192,7 @@ void ogs::initKernels(MPI_Comm comm, occa::device device) {
   }
 
   if(device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
-   ogs::kernelInfo["compiler_flags"] += " --ftz=true ";
+   ogs::kernelInfo["compiler_flags"] = " --ftz=true ";
    ogs::kernelInfo["compiler_flags"] += " --prec-div=false ";
    ogs::kernelInfo["compiler_flags"] += " --prec-sqrt=false ";
    ogs::kernelInfo["compiler_flags"] += " --use_fast_math ";

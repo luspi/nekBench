@@ -6,9 +6,6 @@ endif
 INCLUDES = ../nekBone/BP.h BPPrecon.h 
 DEPS = $(INCLUDES) \
 $(HDRDIR)/timer.hpp \
-$(HDRDIR)/mesh.h \
-$(HDRDIR)/mesh2D.h \
-$(HDRDIR)/mesh3D.h \
 $(OGSDIR)/ogs.hpp \
 ${CORE_DIR}/$(AXHELMDIR)/kernelHelper.cpp \
 ${CORE_DIR}/setCompilerFlags.hpp \
@@ -51,7 +48,9 @@ LOBJS = \
 ../core/meshSetup.o \
 ../core/meshBasis.o \
 ../core/setupAide.o \
-./inireader.o
+../par/core/parReader.o \
+../par/core/tinyexpr.o \
+../par/core/bcMap.o
 
 .PHONY: all install clean realclean
 
@@ -59,7 +58,7 @@ all: driver install
 
 install:
 	@mkdir -p $(PREFIX)
-	@cp driver.ini $(PREFIX)/driver.ini
+	@cp driver.par $(PREFIX)/driver.par
 	@cd ../bw/kernel; find . -type f -name "*" -exec install -D {} $(PREFIX)/kernel/{} \;
 	@cd ../dot/kernel; find . -type f -name "*" -exec install -D {} $(PREFIX)/kernel/{} \;
 	@cp ../gs/*.okl $(PREFIX) 

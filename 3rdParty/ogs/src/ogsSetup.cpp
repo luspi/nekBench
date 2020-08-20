@@ -357,34 +357,34 @@ ogs_t *ogsSetup(dlong N, hlong *ids, MPI_Comm &comm,
 
 void ogsFree(ogs_t *ogs) {
 
-  if (ogs->Nlocal) {
-    free(ogs->localGatherOffsets);
-    free(ogs->localGatherIds);
-    ogs->o_localGatherOffsets.free();
-    ogs->o_localGatherIds.free();
-  }
-
-  if (ogs->Nhalo) {
-    free(ogs->haloGatherOffsets);
-    free(ogs->haloGatherIds);
-    ogs->o_haloGatherOffsets.free();
-    ogs->o_haloGatherIds.free();
-    ogsHostFree(ogs->haloGshSym);
-    ogsHostFree(ogs->haloGshNonSym);
-  }
-
-  if (ogs->N) {
-    free(ogs->invDegree);
-    ogs->o_invDegree.free();
-    ogsHostFree(ogs->hostGsh);
-  }
-
-  if (ogs->Ngather) {
-    free(ogs->gatherInvDegree);
-    ogs->o_gatherInvDegree.free();
-  }
-
-  free(ogs);
+//   if (ogs->Nlocal) {
+//     free(ogs->localGatherOffsets);
+//     free(ogs->localGatherIds);
+//     ogs->o_localGatherOffsets.free();
+//     ogs->o_localGatherIds.free();
+//   }
+//
+//   if (ogs->Nhalo) {
+//     free(ogs->haloGatherOffsets);
+//     free(ogs->haloGatherIds);
+//     ogs->o_haloGatherOffsets.free();
+//     ogs->o_haloGatherIds.free();
+//     ogsHostFree(ogs->haloGshSym);
+//     ogsHostFree(ogs->haloGshNonSym);
+//   }
+//
+//   if (ogs->N) {
+//     free(ogs->invDegree);
+//     ogs->o_invDegree.free();
+//     ogsHostFree(ogs->hostGsh);
+//   }
+//
+//   if (ogs->Ngather) {
+//     free(ogs->gatherInvDegree);
+//     ogs->o_gatherInvDegree.free();
+//   }
+//
+//   free(ogs);
 
   ogs::Nrefs--;
   if (!ogs::Nrefs) ogs::freeKernels();

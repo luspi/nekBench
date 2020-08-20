@@ -7,7 +7,9 @@
 #include "../allred/allred.hpp"
 #include "../gs/gs.hpp"
 #include "../nekBone/nekBone.hpp"
-#include "./inireader.hpp"
+#include "parReader.hpp"
+
+static std::vector<std::vector<libParanumal::setupAide> > options;
 
 const std::vector<std::string> explode(const std::string& s, const char& c)
 {
@@ -23,19 +25,70 @@ const std::vector<std::string> explode(const std::string& s, const char& c)
   return v;
 }
 
-void driver(std::string inifile, MPI_Comm comm) {
+void generateOptions(libParanumal::setupAide &inOpt, libParanumal::setupAide outOpt, std::vector<std::string> processed, int benchIndex) {
+
+  std::vector<std::string> inKey = inOpt.getKeyword();
+  for(size_t i = 0; i < inKey.size(); ++i) {
+    // see if this one is already processed
+    std::vector<std::string>::iterator it = std::find(processed.begin(), processed.end(), inKey[i]);
+    // not yet:
+    if(it == processed.end()) {
+
+      std::vector<std::string> parts = explode(inOpt.getArgs(inKey[i]), *",");
+
+      processed.push_back(inKey[i]);
+
+      for(size_t j = 0; j < parts.size(); ++j) {
+
+        size_t found = inKey[i].find("/");
+        if(found != std::string::npos) {
+
+          std::vector<std::string> optParts = explode(inKey[i], *"/");
+          std::vector<std::string> valParts = explode(parts[j], *"/");
+
+          for(int k = 0; k < optParts.size(); ++k)
+            outOpt.setArgs(optParts[k], valParts[k]);
+
+        } else
+          outOpt.setArgs(inKey[i], parts[j]);
+
+        generateOptions(inOpt, outOpt, processed, benchIndex);
+
+      }
+
+      return;
+
+    }
+
+  }
+
+  options[benchIndex].push_back(outOpt);
+
+}
+
+void driver(std::string parfile, MPI_Comm comm) {
 
   int mpiRank, mpiSize;
   MPI_Comm_rank(comm, &mpiRank);
   MPI_Comm_size(comm, &mpiSize);
 
-  IniReader iniReader(inifile);
-
   int numBench = 7;
+
+  std::vector<libParanumal::setupAide> masterOptions = parRead(parfile, comm);
+
+  for(size_t i = 0; i < numBench; ++i)
+    options.push_back(std::vector<libParanumal::setupAide>());
+
+  for(size_t i = 0; i < numBench; ++i) {
+    std::vector<std::string> processed;
+    libParanumal::setupAide opt;
+    generateOptions(masterOptions[i], opt, processed, i);
+  }
+
   std::string benchmarks[numBench] = {"bw", "dot", "allreduce", "ogs", "pingpong", "axhelm", "nekbone"};
   for(int iBench = 0; iBench < numBench; ++iBench) {
 
-    std::vector<setupAide> allopt = iniReader.getOptions(benchmarks[iBench]);
+    std::vector<libParanumal::setupAide> allopt = options[iBench];
 
     for(int iOpt = 0; iOpt < allopt.size(); ++iOpt) {
 
@@ -43,7 +96,7 @@ void driver(std::string inifile, MPI_Comm comm) {
       if(!enabled) break;
 
       int howManyMpiRanks;
-      if(allopt[iOpt].compareArgs("MPI", "MAX"))
+      if(allopt[iOpt].compareArgs("MPI", "max"))
         howManyMpiRanks = std::min(mpiSize, 512);
       else
         howManyMpiRanks = std::min(std::stoi(allopt[iOpt].getArgs("MPI")), 512);

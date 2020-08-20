@@ -266,14 +266,12 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
 
           out << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
 
-          if(!driverModus)
-            std::cout << out.str();
-          else
-            fprintf(outputFile, out.str().c_str());
-
         }
-        if(driverModus)
+        if(driverModus) {
+          fprintf(outputFile, out.str().c_str());
           fclose(outputFile);
+        } else
+          std::cout << out.str();
       }
     }
   }
@@ -289,6 +287,7 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
   if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
   if(ogs->localGatherIds) free(ogs->localGatherIds);
   if(ogs->invDegree) free(ogs->invDegree);
+  ogsFree((ogs_t*)ogs);
   meshDestroy(mesh);
 
 }

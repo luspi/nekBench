@@ -1,1 +1,1 @@
-void driver(std::string inifile, MPI_Comm comm);
+void driver(std::string parfile, MPI_Comm comm);

@@ -411,8 +411,7 @@ void BPDestroy(BP_t *BP) {
   if(BP->o_solveWorkspace) delete[] BP->o_solveWorkspace;
   if(BP->BPKernel) delete[] BP->BPKernel;
   BP->mesh->device.free();
-  ogs::Nrefs = 0;
-  ogs::freeKernels();
+  ogsFree((ogs_t*)BP->ogs);
   delete BP;
 
 }

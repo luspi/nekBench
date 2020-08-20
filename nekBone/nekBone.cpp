@@ -91,7 +91,7 @@ void nekBone(setupAide &options, MPI_Comm mpiComm) {
   dfloat tol = 1e-8;
   options.getArgs("SOLVER TOLERANCE", tol);
 
-  int it;
+  int it = 0;
   {
     double opElapsed = 0;
     int Ntests = 10;

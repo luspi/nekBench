@@ -58,7 +58,7 @@ int BPPCG(BP_t* BP, occa::memory &o_lambda,
   dfloat rdotz1 = 1;
   dfloat rdotz2 = 0;
   dfloat alpha = 0, beta = 0;
-  dfloat TOL;
+  dfloat TOL = 0;
 
   occa::memory &o_p   = BP->o_solveWorkspace[0];
   occa::memory &o_z   = BP->o_solveWorkspace[1];
@@ -72,17 +72,19 @@ int BPPCG(BP_t* BP, occa::memory &o_lambda,
   if(options.compareArgs("PRECONDITIONER", "JACOBI")) updateJacobi(BP, o_lambda, BP->o_invDiagA);
   if(BP->profiling) timer::toc("preco");
 
-  int iter;
+  int iter = 0;
   for(iter = 1; iter <= MAXIT; ++iter) {
     BPPreconditioner(BP, o_lambda, o_r, o_z);
     rdotz2 = rdotz1;
 
     // dot(r,z) + dot(r,r)
-    dfloat rdotr;  
+    dfloat rdotr = 0;
     if(BP->profiling) timer::tic("dot1");
     BPWeightedInnerProduct2(BP, BP->o_invDegree, o_r, o_z, &rdotz1, &rdotr);
     if(BP->profiling) timer::toc("dot1");
-    if(iter == 1) TOL = mymax(tol * tol * rdotr,tol * tol);
+    if(iter == 1)
+      TOL
+        = mymax(tol * tol * rdotr,tol * tol);
 
     // converged?
     if (verbose && mesh->rank == 0)
@@ -115,7 +117,7 @@ int BPPCG(BP_t* BP, occa::memory &o_lambda,
 
 void BPZeroMean(BP_t* BP, occa::memory &o_q)
 {
-  dfloat qmeanGlobal;
+  dfloat qmeanGlobal = 0;
 
   dlong Nblock = BP->Nblock;
   dfloat* tmp = BP->tmp;

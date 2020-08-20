@@ -1,0 +1,85 @@
+[GENERAL]
+format = 1.0
+verbose = false
+driver modus = true
+
+[BW]
+enabled = true
+MPI = 1
+thread model = CUDA,SERIAL
+
+[DOT]
+enabled = true
+MPI = 1,max
+N = 3,7,9
+n elements = 2048,4096,8192,16384
+thread model = SERIAL,CUDA
+arch = VOLTA
+n tests = 100
+device id = 0
+block size = 256
+global = 0
+
+[ALLREDUCE]
+enabled = true
+MPI = max
+thread model = SERIAL,CUDA
+
+[OGS]
+enabled = true
+MPI = max
+thread model = CUDA
+N = 3,7,9
+nx/ny/nz = 8/16/16,16/16/16,16/16/32,16/32/32
+ogs mode = -1
+n tests = 100
+enabled timer = 0
+dummy kernel = 0
+float type = double
+GPUMPI = 0
+device number = 0
+
+[PINGPONG]
+enabled = true
+MPI = max
+thread model = SERIAL,CUDA
+N = 3
+nx/ny/nz = 8/16/16
+device number = 0
+enabled timer = 0
+float type = double
+GPUMPI = 0
+
+[AXHELM]
+enabled = true
+MPI = 1
+N = 3,7,9
+ndim = 1,3
+n elements = 2048,4096,8192,16384
+thread model = SERIAL,CUDA
+arch = VOLTA
+bkmode = 1
+n tests = 1000
+kernel version = 0
+
+[NEKBONE]
+enabled = true
+MPI = 1,max
+bpmode = 1
+n fields = 1,3
+overlap = 0,1
+lambda = 1.0
+polynomial degree = 3,7,9
+nx/ny/nz = 8/16/16,16/16/16,16/16/32,16/32/32
+kernel id = 0
+platform number = 0
+device number = 0
+arch/thread model = VOLTA/CUDA,CPU/NATIVE+SERIAL
+Krylov solver = PCG
+preconditioner = COPY
+solver tolerance = 1e-6
+n repetitions = 1
+maximum iterations = 5000
+fixed iteration count = 1
+profiling = 0,1
+timer sync = 1

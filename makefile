@@ -53,10 +53,11 @@ export DOTDIR  = $(CURDIR)/dot
 export GSDIR  = $(CURDIR)/gs
 export ALLREDDIR = $(CURDIR)/allred
 export DRIVERDIR  = $(CURDIR)/driver
+export PARDIR = $(CURDIR)/par
 
 export CFLAGS = -I. -DOCCA_VERSION_1_0 $(cCompilerFlags) $(flags) -I$(HDRDIR) -I$(LIBGSDIR)/src -I$(OLIBGSDIR) -I$(OLIBGSDIR)/include -DDOGS='"$(PREFIX)/libgs/"' -D DBP='"$(PREFIX)/"' $(paths)
 
-export CXXFLAGS = -I. -DOCCA_VERSION_1_0 $(compilerFlags) $(flags) -I$(HDRDIR) -I$(LIBGSDIR)/src -I$(OLIBGSDIR) -I$(OLIBGSDIR)/include -DDOGS='"$(PREFIX)/libgs/"' -D DBP='"$(PREFIX)/"' $(paths)
+export CXXFLAGS = -I. -DOCCA_VERSION_1_0 $(compilerFlags) $(flags) -std=c++14 -I$(HDRDIR) -I$(LIBGSDIR)/src -I$(OLIBGSDIR) -I$(OLIBGSDIR)/include -DDOGS='"$(PREFIX)/libgs/"' -D DBP='"$(PREFIX)/"' $(paths) -I$(PARDIR) -I$(PARDIR)/core -I$(PARDIR)/libP/include -I$(PARDIR)/libP/solvers/elliptic -I$(PARDIR)/libP/parAlmond -I$(PARDIR)/nekInterface
 
 LDFLAGS = -lgfortran -fopenmp
 LDFLAGS_BLAS = $(PREFIX)/blasLapack/lib/libBlasLapack.a
