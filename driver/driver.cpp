@@ -39,8 +39,13 @@ void generateOptions(libParanumal::setupAide &inOpt, libParanumal::setupAide out
 
       processed.push_back(inKey[i]);
 
-      if(parts.size() > 1)
-        optionsThatVary[benchIndex].push_back(inKey[i]);
+      if(parts.size() > 1) {
+        // only store this option if it is not already stored
+        // this can happen if this key is part of the default filename options set below
+        std::vector<std::string>::iterator it = std::find(optionsThatVary[benchIndex].begin(), optionsThatVary[benchIndex].end(), inKey[i]);
+        if(it == optionsThatVary[benchIndex].end())
+          optionsThatVary[benchIndex].push_back(inKey[i]);
+      }
 
       for(size_t j = 0; j < parts.size(); ++j) {
 
@@ -83,6 +88,32 @@ void driver(std::string parfile, MPI_Comm comm) {
 
   for(size_t i = 0; i < numBench; ++i)
     options.push_back(std::vector<libParanumal::setupAide>());
+
+  // these options will always be put into the filename even if they don't vary
+  optionsThatVary[0].push_back("THREAD MODEL");
+  optionsThatVary[1].push_back("THREAD MODEL");
+  optionsThatVary[1].push_back("ARCH");
+  optionsThatVary[1].push_back("N");
+  optionsThatVary[1].push_back("N ELEMENTS");
+  optionsThatVary[2].push_back("THREAD MODEL");
+  optionsThatVary[3].push_back("THREAD MODEL");
+  optionsThatVary[3].push_back("N");
+  optionsThatVary[3].push_back("NX");
+  optionsThatVary[3].push_back("NY");
+  optionsThatVary[3].push_back("NZ");
+  optionsThatVary[4].push_back("THREAD MODEL");
+  optionsThatVary[4].push_back("MPI");
+  optionsThatVary[5].push_back("THREAD MODEL");
+  optionsThatVary[5].push_back("N");
+  optionsThatVary[5].push_back("NDIM");
+  optionsThatVary[5].push_back("NELEMENTS");
+  optionsThatVary[6].push_back("THREAD MODEL");
+  optionsThatVary[6].push_back("ARCH");
+  optionsThatVary[6].push_back("NFIELDS");
+  optionsThatVary[6].push_back("POLYNOMIAL DEGREE");
+  optionsThatVary[6].push_back("NX");
+  optionsThatVary[6].push_back("NY");
+  optionsThatVary[6].push_back("NZ");
 
   for(size_t i = 0; i < numBench; ++i) {
     std::vector<std::string> processed;
