@@ -34,14 +34,34 @@ static occa::memory p_tmp;
 
 void reportMemoryUsage(occa::device &device, const char* mess);
 
-BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool driverModus, FILE** driverFile)
+std::string nbFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std::vector<std::string> optionsForFilename, bool driverModus, FILE** driverFile)
 {
   BP_t* BP = new BP_t();
 
   if(mesh->rank == 0 && driverModus) {
 
     std::stringstream fname;
-    fname << "nekBone_N_" << mesh->N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "nekBone_N_" << mesh->N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
+    else {
+      fname << "nekBone";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << nbFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
+
     *driverFile = fopen(fname.str().c_str(), "w");
 
     std::cout << "nekBone: writing results to " << fname.str() << std::endl;

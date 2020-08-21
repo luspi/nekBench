@@ -10,6 +10,7 @@
 #include "parReader.hpp"
 
 static std::vector<std::vector<libParanumal::setupAide> > options;
+static std::vector<std::vector<std::string> > optionsThatVary;
 
 const std::vector<std::string> explode(const std::string& s, const char& c)
 {
@@ -37,6 +38,9 @@ void generateOptions(libParanumal::setupAide &inOpt, libParanumal::setupAide out
       std::vector<std::string> parts = explode(inOpt.getArgs(inKey[i]), *",");
 
       processed.push_back(inKey[i]);
+
+      if(parts.size() > 1)
+        optionsThatVary[benchIndex].push_back(inKey[i]);
 
       for(size_t j = 0; j < parts.size(); ++j) {
 
@@ -75,6 +79,7 @@ void driver(std::string parfile, MPI_Comm comm) {
   int numBench = 7;
 
   std::vector<libParanumal::setupAide> masterOptions = parRead(parfile, comm);
+  optionsThatVary.resize(masterOptions.size());
 
   for(size_t i = 0; i < numBench; ++i)
     options.push_back(std::vector<libParanumal::setupAide>());
@@ -123,19 +128,19 @@ void driver(std::string parfile, MPI_Comm comm) {
 
       if(mpiRank < howManyMpiRanks) {
         if(benchmarks[iBench] == "bw") {
-          bw(allopt[iOpt], subComm);
+          bw(allopt[iOpt], optionsThatVary[iOpt], subComm);
         } else if(benchmarks[iBench] == "dot") {
-          dot(allopt[iOpt], subComm);
+          dot(allopt[iOpt], optionsThatVary[iOpt], subComm);
         } else if(benchmarks[iBench] == "allreduce") {
-          allred(allopt[iOpt], subComm);
+          allred(allopt[iOpt], optionsThatVary[iOpt], subComm);
         } else if(benchmarks[iBench] == "ogs") {
-          gs(allopt[iOpt], subComm, true, false);
+          gs(allopt[iOpt], optionsThatVary[iOpt], subComm, true, false);
         } else if(benchmarks[iBench] == "pingpong") {
-          gs(allopt[iOpt], subComm, false, true);
+          gs(allopt[iOpt], optionsThatVary[iOpt], subComm, false, true);
         } else if(benchmarks[iBench] == "axhelm") {
-          axhelm(allopt[iOpt], subComm);
+          axhelm(allopt[iOpt], optionsThatVary[iOpt], subComm);
         } else if(benchmarks[iBench] == "nekbone") {
-          nekBone(allopt[iOpt], subComm);
+          nekBone(allopt[iOpt], optionsThatVary[iOpt], subComm);
         }
       }
 

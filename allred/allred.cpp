@@ -10,7 +10,18 @@
 #include "setupAide.hpp"
 #include "setCompilerFlags.hpp"
 
-void allred(setupAide &options, MPI_Comm mpiComm) {
+std::string allredFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm) {
 
   int mpiRank, mpiSize;
   MPI_Comm_size(mpiComm, &mpiSize);
@@ -45,7 +56,16 @@ void allred(setupAide &options, MPI_Comm mpiComm) {
   if(driverModus && mpiRank == 0) {
 
     std::stringstream fname;
-    fname << "allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";
+    else {
+      fname << "allreduce_";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << allredFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
+
     outputFile = fopen(fname.str().c_str(), "w");
     fprintf(outputFile, "%-10s %-10s %-10s\n", "words", "loops", "timing");
 

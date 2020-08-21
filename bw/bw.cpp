@@ -11,7 +11,18 @@
 #include "setupAide.hpp"
 #include "setCompilerFlags.hpp"
 
-void bw(setupAide &options, MPI_Comm mpiComm) {
+std::string bwFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+void bw(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm) {
     
   const int deviceId = 0;
   const int platformId = 0;
@@ -42,7 +53,15 @@ void bw(setupAide &options, MPI_Comm mpiComm) {
   if(driverModus) {
 
     std::stringstream fname;
-    fname << "bw_" << threadModel << ".txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "bw_" << threadModel << ".txt";
+    else {
+      fname << "bw";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << bwFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
     outputFile = fopen(fname.str().c_str(), "w");
 
     std::cout << "bw: writing results to " << fname.str() << std::endl;

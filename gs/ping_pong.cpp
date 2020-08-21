@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <occa.hpp>
+#include "setupAide.hpp"
 
 #define FIELD_WIDTH 20
 #define FLOAT_PRECISION 2
@@ -33,15 +34,26 @@ struct options_t
   size_t pairs;
 };
 
-static void multi_latency(MPI_Comm comm, bool driverModus);
-static void single_latency( MPI_Comm comm, bool driverModus);
+static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename);
+static void single_latency( MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename);
+
+std::string ppFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
 
 // GLOBALS
 struct options_t options;
 char* s_buf, * r_buf;
 
 extern "C" { // Begin C Linkage
-int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, bool driverModus)
+int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
 {
   int size, rank;
   MPI_Comm_size(comm,&size);
@@ -78,7 +90,7 @@ int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, 
   }
 
   MPI_CHECK(MPI_Barrier(comm));
-  multi_latency(comm, driverModus);
+  multi_latency(comm, driverModus, opt, optionsForFilename);
   MPI_CHECK(MPI_Barrier(comm));
 
   if(useDevice) {
@@ -92,7 +104,7 @@ int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, 
   return EXIT_SUCCESS;
 }
 
-int pingPongSingle(int useDevice, occa::device device, MPI_Comm comm, bool driverModus)
+int pingPongSingle(int useDevice, occa::device device, MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
 {
 
     int size, rank;
@@ -130,7 +142,7 @@ int pingPongSingle(int useDevice, occa::device device, MPI_Comm comm, bool drive
     }
 
     MPI_CHECK(MPI_Barrier(comm));
-    single_latency(comm, driverModus);
+    single_latency(comm, driverModus, opt, optionsForFilename);
     MPI_CHECK(MPI_Barrier(comm));
 
     if(useDevice) {
@@ -145,7 +157,7 @@ int pingPongSingle(int useDevice, occa::device device, MPI_Comm comm, bool drive
 }
 } // end C Linkage
 
-static void multi_latency(MPI_Comm comm, bool driverModus)
+static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
 {
   int size, partner;
   int i;
@@ -164,6 +176,15 @@ static void multi_latency(MPI_Comm comm, bool driverModus)
 
     std::stringstream fname;
     fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
+    else {
+      fname << "pingpong_multi";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << ppFormatStringForFilename(optionsForFilename[i]) << "_" << opt.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
 
     outputFile = fopen(fname.str().c_str(), "w");
     fprintf(outputFile, "%-*s%*s\n", 15, "bytes", FIELD_WIDTH, "average latency");
@@ -239,7 +260,7 @@ static void multi_latency(MPI_Comm comm, bool driverModus)
   }
 }
 
-static void single_latency(MPI_Comm comm, bool driverModus) {
+static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename) {
 
   int myRank, mpiSize;
   MPI_Comm_rank(comm, &myRank);
@@ -262,7 +283,15 @@ static void single_latency(MPI_Comm comm, bool driverModus) {
   if(myRank == 0) {
 
     std::stringstream fname;
-    fname << "pingpong_single_" << mpiSize << "_ranks.txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "pingpong_single_" << mpiSize << "_ranks.txt";
+    else {
+      fname << "pingpong_single";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << ppFormatStringForFilename(optionsForFilename[i]) << "_" << opt.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
 
     outputFile = fopen(fname.str().c_str(), "w");
     fprintf(outputFile, "%-10s %-10s %-10s %-10s %-15s %-15s\n", "sender", "total", "receiver", "loopcount", "bytes", "timing");

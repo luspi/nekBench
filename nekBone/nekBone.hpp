@@ -1,3 +1,3 @@
 #include "setupAide.hpp"
 
-void nekBone(setupAide &options, MPI_Comm mpiComm);
+void nekBone(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm);

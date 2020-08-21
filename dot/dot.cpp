@@ -41,7 +41,18 @@ dfloat weightedInnerProduct(dlong N, dlong Ncutoff, int Nblock, occa::memory &o_
   return globalwab;
 }
 
-void dot(setupAide &options, MPI_Comm mpiComm) {
+std::string dotFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+void dot(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm) {
 
   int rank = 0, size = 1;
   MPI_Comm_rank(mpiComm, &rank);
@@ -89,7 +100,15 @@ void dot(setupAide &options, MPI_Comm mpiComm) {
   if(rank == 0 && driverModus) {
 
     std::stringstream fname;
-    fname << "dot_" << threadModel << "_" << arch << "_N_" << N << "_elements_" << Nelements << "_ranks_" << size << ".txt";
+
+    if(optionsForFilename.size() == 0)
+      fname << "dot_" << threadModel << "_" << arch << "_N_" << N << "_elements_" << Nelements << "_ranks_" << size << ".txt";
+    else {
+      fname << "dot";
+      for(int i = 0; i < optionsForFilename.size(); ++i)
+        fname << "_" << dotFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+      fname << ".txt";
+    }
     outputFile = fopen(fname.str().c_str(), "w");
 
     std::cout << "dot: writing results to " << fname.str() << std::endl;

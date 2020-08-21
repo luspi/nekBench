@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   setupAide options;
   options.setArgs("THREAD MODEL", argv[1]);
   options.setArgs("DRIVER MODUS", "FALSE");
-  allred(options, MPI_COMM_WORLD);
+  allred(options, std::vector<std::string>(), MPI_COMM_WORLD);
 
   MPI_Finalize();
   exit(0);

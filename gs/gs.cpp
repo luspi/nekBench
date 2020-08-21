@@ -15,7 +15,18 @@
 
 #include "mygs.h"
 
-void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPong) {
+std::string gsFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm, bool testOgsModes, bool testPingPong) {
 
   int rank;
   MPI_Comm_rank (mpiComm, &rank);
@@ -171,11 +182,11 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
     MPI_Barrier(mpiComm);
     {
       const int nPairs = mesh->size / 2;
-      pingPongMulti(nPairs, 0, mesh->device, mpiComm, driverModus);
-      pingPongSingle(0, mesh->device, mpiComm, driverModus);
+      pingPongMulti(nPairs, 0, mesh->device, mpiComm, driverModus, options, optionsForFilename);
+      pingPongSingle(0, mesh->device, mpiComm, driverModus, options, optionsForFilename);
       if(enabledGPUMPI) {
-        pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mpiComm, driverModus);
-        pingPongSingle(1, mesh->device, mpiComm, driverModus);
+        pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mpiComm, driverModus, options, optionsForFilename);
+        pingPongSingle(1, mesh->device, mpiComm, driverModus, options, optionsForFilename);
       }
     }
 
@@ -234,7 +245,16 @@ void gs(setupAide &options, MPI_Comm mpiComm, bool testOgsModes, bool testPingPo
         FILE *outputFile;
         if(driverModus) {
           std::stringstream fname;
-          fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
+
+          if(optionsForFilename.size() == 0)
+            fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
+          else {
+            fname << "ogs";
+            for(int i = 0; i < optionsForFilename.size(); ++i)
+              fname << "_" << gsFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+            fname << ".txt";
+          }
+
           outputFile = fopen(fname.str().c_str(), "w");
           std::cout << "ogs: writing results to " << fname.str() << std::endl;
         }

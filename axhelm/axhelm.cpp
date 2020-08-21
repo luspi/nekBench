@@ -17,7 +17,18 @@ namespace dA {
 
 static occa::kernel axKernel;
 
-void axhelm(setupAide &options, MPI_Comm mpiComm) {
+std::string axhelmFormatStringForFilename(std::string in) {
+  std::string out = in;
+  size_t pos = out.find(" ");
+  while(pos != std::string::npos) {
+    out.replace(pos, 1, "");
+    pos = out.find(" ", pos);
+  }
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
+  return out;
+}
+
+void axhelm(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm) {
 
   const int N = std::stoi(options.getArgs("N"));
   const int Ndim = std::stoi(options.getArgs("NDIM"));
@@ -81,7 +92,16 @@ void axhelm(setupAide &options, MPI_Comm mpiComm) {
     if(driverModus) {
 
       std::stringstream fname;
-      fname << "axhelm_" << threadModel << "_" << arch << "_N_" << N << "_ndim_" << Ndim << "_elements_" << Nelements << "_bkmode_" << BKmode << ".txt";
+
+      if(optionsForFilename.size() == 0)
+        fname << "axhelm_" << threadModel << "_" << arch << "_N_" << N << "_ndim_" << Ndim << "_elements_" << Nelements << "_bkmode_" << BKmode << ".txt";
+      else {
+        fname << "axhelm";
+        for(int i = 0; i < optionsForFilename.size(); ++i)
+          fname << "_" << axhelmFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+        fname << ".txt";
+      }
+
       outputFile = fopen(fname.str().c_str(), "w");
       fprintf(outputFile, out.str().c_str());
 

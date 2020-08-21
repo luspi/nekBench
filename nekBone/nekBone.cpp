@@ -35,7 +35,7 @@ int solve(BP_t* BP,
   return Niter;
 }
 
-void nekBone(setupAide &options, MPI_Comm mpiComm) {
+void nekBone(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm) {
 
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
@@ -83,7 +83,7 @@ void nekBone(setupAide &options, MPI_Comm mpiComm) {
   meshOccaSetup3D(mesh, options, kernelInfo);
 
   FILE *outputFile;
-  BP_t* BP = setup(mesh, kernelInfo, options, driverModus, &outputFile);
+  BP_t* BP = setup(mesh, kernelInfo, options, optionsForFilename, driverModus, &outputFile);
 
   dlong Ndofs = BP->Nfields * mesh->Np * mesh->Nelements;
 

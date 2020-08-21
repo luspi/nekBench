@@ -23,7 +23,7 @@ int main(int argc, char** argv)
   options.setArgs("GLOBAL", (argc >= 9 ? argv[8] : "0"));
   options.setArgs("DRIVER MODUS", "FALSE");
 
-  dot(options, MPI_COMM_WORLD);
+  dot(options, std::vector<std::string>(), MPI_COMM_WORLD);
 
   MPI_Finalize();
   exit(0);

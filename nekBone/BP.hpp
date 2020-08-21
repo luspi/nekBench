@@ -152,7 +152,7 @@ typedef struct
   hlong NelementsGlobal;
 }BP_t;
 
-BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, bool driverModus, FILE **driverFile);
+BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std::vector<std::string> optionsForFilename, bool driverModus, FILE **driverFile);
 
 void BPDestroy(BP_t *BP);
 
