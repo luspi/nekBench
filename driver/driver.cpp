@@ -39,14 +39,6 @@ void generateOptions(libParanumal::setupAide &inOpt, libParanumal::setupAide out
 
       processed.push_back(inKey[i]);
 
-      if(parts.size() > 1) {
-        // only store this option if it is not already stored
-        // this can happen if this key is part of the default filename options set below
-        std::vector<std::string>::iterator it = std::find(optionsThatVary[benchIndex].begin(), optionsThatVary[benchIndex].end(), inKey[i]);
-        if(it == optionsThatVary[benchIndex].end())
-          optionsThatVary[benchIndex].push_back(inKey[i]);
-      }
-
       for(size_t j = 0; j < parts.size(); ++j) {
 
         size_t found = inKey[i].find("/");
@@ -55,11 +47,25 @@ void generateOptions(libParanumal::setupAide &inOpt, libParanumal::setupAide out
           std::vector<std::string> optParts = explode(inKey[i], *"/");
           std::vector<std::string> valParts = explode(parts[j], *"/");
 
-          for(int k = 0; k < optParts.size(); ++k)
+          for(int k = 0; k < optParts.size(); ++k) {
             outOpt.setArgs(optParts[k], valParts[k]);
+            if(j == 0 && parts.size() > 1) {
+              // only store this option if it is not already stored
+              // this can happen if this key is part of the default filename options set below
+              std::vector<std::string>::iterator it = std::find(optionsThatVary[benchIndex].begin(), optionsThatVary[benchIndex].end(), optParts[k]);
+              if(it == optionsThatVary[benchIndex].end())
+                optionsThatVary[benchIndex].push_back(optParts[k]);
+            }
+          }
 
-        } else
+        } else {
           outOpt.setArgs(inKey[i], parts[j]);
+          if(j == 0 && parts.size() > 1) {
+            std::vector<std::string>::iterator it = std::find(optionsThatVary[benchIndex].begin(), optionsThatVary[benchIndex].end(), inKey[i]);
+            if(it == optionsThatVary[benchIndex].end())
+              optionsThatVary[benchIndex].push_back(inKey[i]);
+          }
+        }
 
         generateOptions(inOpt, outOpt, processed, benchIndex);
 
