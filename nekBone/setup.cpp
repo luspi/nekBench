@@ -52,6 +52,10 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std:
   if(mesh->rank == 0 && driverModus) {
 
     std::stringstream fname;
+    
+    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+    if(outdir)
+      fname << outdir << "/";
 
     if(optionsForFilename.size() == 0)
       fname << "nekBone_N_" << mesh->N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";

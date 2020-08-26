@@ -50,12 +50,20 @@ void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI
     sprintf(deviceConfig, "mode: 'Serial' ");
     omp_set_num_threads(1);
   }
+    
+  const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+  if(outdir)
+    std::cout << "outdir = " << outdir << std::endl;
 
   FILE *outputFile;
 
   if(driverModus && mpiRank == 0) {
 
     std::stringstream fname;
+    
+    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+    if(outdir)
+      fname << outdir << "/";
 
     if(optionsForFilename.size() == 0)
       fname << "allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";

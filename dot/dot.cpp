@@ -100,6 +100,10 @@ void dot(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Co
   if(rank == 0 && driverModus) {
 
     std::stringstream fname;
+    
+    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+    if(outdir)
+      fname << outdir << "/";
 
     if(optionsForFilename.size() == 0)
       fname << "dot_" << threadModel << "_" << arch << "_N_" << N << "_elements_" << Nelements << "_ranks_" << size << ".txt";

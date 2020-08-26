@@ -53,6 +53,10 @@ void bw(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   if(driverModus) {
 
     std::stringstream fname;
+    
+    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+    if(outdir)
+      fname << outdir << "/";
 
     if(optionsForFilename.size() == 0)
       fname << "bw_" << threadModel << ".txt";

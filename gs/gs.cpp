@@ -245,6 +245,10 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
         FILE *outputFile;
         if(driverModus) {
           std::stringstream fname;
+          
+          const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
+          if(outdir)
+            fname << outdir << "/";
 
           if(optionsForFilename.size() == 0)
             fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
