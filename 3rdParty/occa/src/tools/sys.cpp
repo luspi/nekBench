@@ -13,7 +13,7 @@
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <sys/syscall.h>
-#  include <sys/sysctl.h>
+// #  include <sys/sysctl.h>
 #  include <sys/time.h>
 #  include <unistd.h>
 #  if (OCCA_OS & OCCA_LINUX_OS)
