@@ -165,19 +165,19 @@ void driver(std::string parfile, MPI_Comm comm) {
 
       if(mpiRank < howManyMpiRanks) {
         if(benchmarks[iBench] == "bw") {
-          bw(allopt[iOpt], optionsThatVary[iOpt], subComm);
+          bw(allopt[iOpt], optionsThatVary[iBench], subComm);
         } else if(benchmarks[iBench] == "dot") {
-          dot(allopt[iOpt], optionsThatVary[iOpt], subComm);
+          dot(allopt[iOpt], optionsThatVary[iBench], subComm);
         } else if(benchmarks[iBench] == "allreduce") {
-          allred(allopt[iOpt], optionsThatVary[iOpt], subComm);
+          allred(allopt[iOpt], optionsThatVary[iBench], subComm);
         } else if(benchmarks[iBench] == "ogs") {
-          gs(allopt[iOpt], optionsThatVary[iOpt], subComm, true, false);
+          gs(allopt[iOpt], optionsThatVary[iBench], subComm, true, false);
         } else if(benchmarks[iBench] == "pingpong") {
-          gs(allopt[iOpt], optionsThatVary[iOpt], subComm, false, true);
+          gs(allopt[iOpt], optionsThatVary[iBench], subComm, false, true);
         } else if(benchmarks[iBench] == "axhelm") {
-          axhelm(allopt[iOpt], optionsThatVary[iOpt], subComm);
+          axhelm(allopt[iOpt], optionsThatVary[iBench], subComm);
         } else if(benchmarks[iBench] == "nekbone") {
-          nekBone(allopt[iOpt], optionsThatVary[iOpt], subComm);
+          nekBone(allopt[iOpt], optionsThatVary[iBench], subComm);
         }
       }
 

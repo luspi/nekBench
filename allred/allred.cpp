@@ -35,7 +35,7 @@ void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI
   // build device
   occa::device device;
   char deviceConfig[BUFSIZ];
-  
+
   std::string threadModel = options.getArgs("THREAD MODEL");
 
   if(strstr(threadModel.c_str(), "CUDA")) {
@@ -60,7 +60,7 @@ void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI
     if(optionsForFilename.size() == 0)
       fname << "allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";
     else {
-      fname << "allreduce_";
+      fname << "allreduce";
       for(int i = 0; i < optionsForFilename.size(); ++i)
         fname << "_" << allredFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
       fname << ".txt";
@@ -93,21 +93,21 @@ void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI
   int Ntests = 100;
 
   for(int size = 1; size < max_message_size; size = (((int)(size*1.05)>size) ? (int)(size*1.05) : size+1)) {
-    
+
     occa::memory o_mem_send = device.malloc(size * sizeof(double));
     occa::memory o_mem_recv = device.malloc(size * sizeof(double));
     device.finish();
     MPI_Barrier(mpiComm);
-    
+
     double t1 = MPI_Wtime();
-    
+
     for(int test = 0; test < Ntests; ++test)
       MPI_Allreduce(o_mem_send.ptr(), o_mem_recv.ptr(), size, MPI_DOUBLE, MPI_SUM, mpiComm);
-    
+
     device.finish();
     MPI_Barrier(mpiComm);
     double t2 = MPI_Wtime();
-    
+
     if(mpiRank == 0) {
       double elapsed = (t2-t1) / Ntests;
       if(driverModus)

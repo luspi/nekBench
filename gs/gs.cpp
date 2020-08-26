@@ -249,7 +249,7 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
           if(optionsForFilename.size() == 0)
             fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
           else {
-            fname << "ogs";
+            fname << "ogs_mode_" << ogs_mode_enum;
             for(int i = 0; i < optionsForFilename.size(); ++i)
               fname << "_" << gsFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
             fname << ".txt";
@@ -295,7 +295,7 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
       }
     }
   }
-    
+
   free(U);
   o_U.free();
   o_q.free();
@@ -307,7 +307,7 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
   if(ogs->localGatherIds) free(ogs->localGatherIds);
   if(ogs->invDegree) free(ogs->invDegree);
-  ogsFree((ogs_t*)ogs);
+//   ogsFree((ogs_t*)ogs);
   meshDestroy(mesh);
 
 }
