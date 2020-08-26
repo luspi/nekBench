@@ -10,7 +10,8 @@ namespace occa {
 
     std::string baseCompilerFlag(const int vendor_) {
       if (vendor_ & (sys::vendor::GNU |
-                     sys::vendor::LLVM)) {
+                     sys::vendor::LLVM |
+                     sys::vendor::PowerPC)) {
         return "-fopenmp";
       } else if (vendor_ & sys::vendor::Intel) {
         return "-qopenmp";

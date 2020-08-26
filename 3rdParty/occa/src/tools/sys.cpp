@@ -722,7 +722,8 @@ namespace occa {
                      sys::vendor::Intel |
                      sys::vendor::HP    |
                      sys::vendor::PGI   |
-                     sys::vendor::Pathscale)) {
+                     sys::vendor::Pathscale |
+                     sys::vendor::PowerPC)) {
         return "-std=c++11";
       } else if (vendor_ & sys::vendor::Cray) {
         return "-hstd=c++11";
@@ -745,7 +746,8 @@ namespace occa {
                      sys::vendor::Intel |
                      sys::vendor::HP    |
                      sys::vendor::PGI   |
-                     sys::vendor::Pathscale)) {
+                     sys::vendor::Pathscale |
+                     sys::vendor::PowerPC)) {
         return "-std=c99";
       } else if (vendor_ & sys::vendor::Cray) {
         return "-hstd=c99";
@@ -768,7 +770,8 @@ namespace occa {
                      sys::vendor::Intel |
                      sys::vendor::PGI   |
                      sys::vendor::Cray  |
-                     sys::vendor::Pathscale)) {
+                     sys::vendor::Pathscale |
+                     sys::vendor::PowerPC)) {
         return "-fPIC -shared";
       } else if (vendor_ & sys::vendor::IBM) {
         return "-qpic -shared";
