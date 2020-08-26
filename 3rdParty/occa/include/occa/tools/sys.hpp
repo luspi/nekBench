@@ -38,7 +38,7 @@ namespace occa {
       static const int HP           = (1 << b_HP);           // aCC
       static const int VisualStudio = (1 << b_VisualStudio); // cl.exe
       static const int Cray         = (1 << b_Cray);         // cc     , CC
-      static const int PowerPC      = (1 << b_GNU);          // gcc    , g++
+      static const int PowerPC      = (1 << b_PowerPC);          // gcc    , g++
     }
 
     namespace language {
