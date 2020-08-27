@@ -104,7 +104,7 @@ void setDefaultSettings(std::vector<libParanumal::setupAide> &options)
   options[6].setArgs("OVERLAP", string("TRUE"));
   options[6].setArgs("LAMBDA", string("1.0"));
   options[6].setArgs("POLYNOMIAL DEGREE", string("3,7,9"));
-  options[6].setArgs("NX/NY/NZ", string("8/16/16,16/16/16,16/16/32,16/32/32"));
+  options[6].setArgs("BOX NX/BOX NY/BOX NZ", string("8/16/16,16/16/16,16/16/32,16/32/32"));
   options[6].setArgs("KERNEL ID", string("0"));
   options[6].setArgs("PLATFORM NUMBER", string("0"));
   options[6].setArgs("DEVICE NUMBER", string("0"));

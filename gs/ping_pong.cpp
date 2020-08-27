@@ -175,12 +175,10 @@ static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::v
   if(mpiRank == 0 && driverModus) {
 
     std::stringstream fname;
-    
+
     const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
     if(outdir)
       fname << outdir << "/";
-    
-    fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
 
     if(optionsForFilename.size() == 0)
       fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
@@ -288,7 +286,7 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
   if(myRank == 0) {
 
     std::stringstream fname;
-    
+
     const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
     if(outdir)
       fname << outdir << "/";
@@ -410,11 +408,11 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
     if(driverModus) {
 
       std::stringstream fname;
-      
+
       const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
       if(outdir)
         fname << outdir << "/";
-      
+
       fname << "pingpong_single_summary_" << mpiSize << "_ranks.txt";
       FILE *outputFileSummary = fopen(fname.str().c_str(), "w");
 

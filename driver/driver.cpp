@@ -117,9 +117,9 @@ void driver(std::string parfile, MPI_Comm comm) {
   optionsThatVary[6].push_back("ARCH");
   optionsThatVary[6].push_back("NFIELDS");
   optionsThatVary[6].push_back("POLYNOMIAL DEGREE");
-  optionsThatVary[6].push_back("NX");
-  optionsThatVary[6].push_back("NY");
-  optionsThatVary[6].push_back("NZ");
+  optionsThatVary[6].push_back("BOX NX");
+  optionsThatVary[6].push_back("BOX NY");
+  optionsThatVary[6].push_back("BOX NZ");
 
   for(size_t i = 0; i < numBench; ++i) {
     std::vector<std::string> processed;
@@ -186,5 +186,5 @@ void driver(std::string parfile, MPI_Comm comm) {
     }
 
   }
-  
+
 }
