@@ -55,11 +55,11 @@ enabled = true
 MPI = 1
 N = 3,7,9
 ndim = 1,3
-n elements = 2048,4096,8192,16384
+n elements = 64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072
 thread model = SERIAL,CUDA
 arch = VOLTA
 bkmode = 1
-n tests = 1000
+n tests = 100
 kernel version = 0
 
 [NEKBONE]
