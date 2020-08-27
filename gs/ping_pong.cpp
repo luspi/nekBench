@@ -184,8 +184,13 @@ static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::v
       fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
     else {
       fname << "pingpong_multi";
-      for(int i = 0; i < optionsForFilename.size(); ++i)
-        fname << "_" << ppFormatStringForFilename(optionsForFilename[i]) << "_" << opt.getArgs(optionsForFilename[i]);
+      for(int i = 0; i < optionsForFilename.size(); ++i) {
+        std::string key = ppFormatStringForFilename(optionsForFilename[i]);
+        std::string val = opt.getArgs(optionsForFilename[i]);
+        if(key == "mpi" && val == "max")
+          val = std::to_string(mpiSize);
+        fname << "_" << key << "_" << val;
+      }
       fname << ".txt";
     }
 
@@ -295,8 +300,13 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
       fname << "pingpong_single_" << mpiSize << "_ranks.txt";
     else {
       fname << "pingpong_single";
-      for(int i = 0; i < optionsForFilename.size(); ++i)
-        fname << "_" << ppFormatStringForFilename(optionsForFilename[i]) << "_" << opt.getArgs(optionsForFilename[i]);
+      for(int i = 0; i < optionsForFilename.size(); ++i) {
+        std::string key = ppFormatStringForFilename(optionsForFilename[i]);
+        std::string val = opt.getArgs(optionsForFilename[i]);
+        if(key == "mpi" && val == "max")
+          val = std::to_string(mpiSize);
+        fname << "_" << key << "_" << val;
+      }
       fname << ".txt";
     }
 
@@ -413,7 +423,20 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
       if(outdir)
         fname << outdir << "/";
 
-      fname << "pingpong_single_summary_" << mpiSize << "_ranks.txt";
+
+      if(optionsForFilename.size() == 0)
+        fname << "pingpong_single_summary_" << mpiSize << "_ranks.txt";
+      else {
+        fname << "pingpong_single_summary_";
+        for(int i = 0; i < optionsForFilename.size(); ++i) {
+          std::string key = ppFormatStringForFilename(optionsForFilename[i]);
+          std::string val = opt.getArgs(optionsForFilename[i]);
+          if(key == "mpi" && val == "max")
+            val = std::to_string(mpiSize);
+          fname << "_" << key << "_" << val;
+        }
+        fname << ".txt";
+      }
       FILE *outputFileSummary = fopen(fname.str().c_str(), "w");
 
       printf("writing summary to %s\n", fname.str().c_str());
