@@ -61,8 +61,13 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std:
       fname << "nekBone_N_" << mesh->N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
     else {
       fname << "nekBone";
-      for(int i = 0; i < optionsForFilename.size(); ++i)
-        fname << "_" << nbFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+      for(int i = 0; i < optionsForFilename.size(); ++i) {
+        std::string key = nbFormatStringForFilename(optionsForFilename[i]);
+        std::string val = options.getArgs(optionsForFilename[i]);
+        if(key == "mpi" && val == "max")
+          val = std::to_string(mpiSize);
+        fname << "_" << key << "_" << val;
+      }
       fname << ".txt";
     }
 
