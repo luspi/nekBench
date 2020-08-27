@@ -427,7 +427,7 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
       if(optionsForFilename.size() == 0)
         fname << "pingpong_single_summary_" << mpiSize << "_ranks.txt";
       else {
-        fname << "pingpong_single_summary_";
+        fname << "pingpong_single_summary";
         for(int i = 0; i < optionsForFilename.size(); ++i) {
           std::string key = ppFormatStringForFilename(optionsForFilename[i]);
           std::string val = opt.getArgs(optionsForFilename[i]);

@@ -28,8 +28,9 @@ std::string gsFormatStringForFilename(std::string in) {
 
 void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Comm mpiComm, bool testOgsModes, bool testPingPong) {
 
-  int rank;
+  int rank, mpiSize;
   MPI_Comm_rank (mpiComm, &rank);
+  MPI_Comm_size (mpiComm, &mpiSize);
 
   bool driverModus = options.compareArgs("DRIVER MODUS", "TRUE");
 
@@ -245,7 +246,7 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
         FILE *outputFile;
         if(driverModus) {
           std::stringstream fname;
-          
+
           const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
           if(outdir)
             fname << outdir << "/";
@@ -254,8 +255,13 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
             fname << "ogs_mode_" << ogs_mode_enum << "_N_" << N << "_elements_" << mesh->Nelements << "_ranks_" << mesh->size << ".txt";
           else {
             fname << "ogs_mode_" << ogs_mode_enum;
-            for(int i = 0; i < optionsForFilename.size(); ++i)
-              fname << "_" << gsFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
+            for(int i = 0; i < optionsForFilename.size(); ++i) {
+              std::string key = gsFormatStringForFilename(optionsForFilename[i]);
+              std::string val = options.getArgs(optionsForFilename[i]);
+              if(key == "mpi" && val == "max")
+                val = std::to_string(mpiSize);
+              fname << "_" << key << "_" << val;
+            }
             fname << ".txt";
           }
 
@@ -311,7 +317,6 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   if(ogs->gatherInvDegree) free(ogs->gatherInvDegree);
   if(ogs->localGatherIds) free(ogs->localGatherIds);
   if(ogs->invDegree) free(ogs->invDegree);
-//   ogsFree((ogs_t*)ogs);
   meshDestroy(mesh);
 
 }

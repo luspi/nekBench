@@ -52,7 +52,7 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std:
   if(mesh->rank == 0 && driverModus) {
 
     std::stringstream fname;
-    
+
     const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
     if(outdir)
       fname << outdir << "/";
@@ -304,7 +304,7 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
 
       BP->multipleInnerProduct2Kernel =
         mesh->device.buildKernel(DBP "/kernel/utils.okl", "multipleInnerProduct2", kernelInfo);
- 
+
       BP->weightedNorm2Kernel =
         mesh->device.buildKernel(DBP "/kernel/utils.okl", "weightedNorm2", kernelInfo);
 
@@ -350,7 +350,7 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
         mesh->device.buildKernel(fileName.c_str(), "weightedInnerProduct2", props);
       BP->weightedMultipleInnerProduct2Kernel =
         mesh->device.buildKernel(fileName.c_str(), "weightedMultipleInnerProduct2", props);
-      BP->weightedInnerProductUpdateKernel = 
+      BP->weightedInnerProductUpdateKernel =
         mesh->device.buildKernel(fileName.c_str(), "weightedInnerProductUpdate", props);
 
       occa::kernel nothingKernel = mesh->device.buildKernel(DBP "/kernel/utils.okl", "nothingKernel", kernelInfo);
@@ -365,7 +365,7 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
     kernelName += "Partial";
   if(BP->BPid)
     kernelName += "_bk";
-  if(BP->Nfields > 1) 
+  if(BP->Nfields > 1)
     kernelName += "_n" + std::to_string(BP->Nfields);
   kernelName += "_v" + std::to_string(knlId);
   BP->BPKernel[0] = loadAxKernel(mesh->device,
@@ -373,14 +373,14 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
                                  arch,
                                  kernelName,
                                  mesh->N,
-                                 mesh->Nelements, 
+                                 mesh->Nelements,
                                  mesh->comm);
 
 /*
   BP->ogs = ogsSetup(Ntotal, mesh->maskedGlobalIds, mesh->comm, 1, mesh->device);
   BP->o_invDegree = ((ogs_t*)BP->ogs)->o_invDegree;
 */
-  auto callback = [&]() 
+  auto callback = [&]()
     {
       if(!BP->overlap) return;
 
@@ -401,7 +401,7 @@ void solveSetup(BP_t* BP, occa::properties &kernelInfo)
     };
 
   oogs_mode oogsMode = OOGS_AUTO;
-  if(options.compareArgs("THREAD MODEL", "SERIAL")) oogsMode = OOGS_DEFAULT; 
+  if(options.compareArgs("THREAD MODEL", "SERIAL")) oogsMode = OOGS_DEFAULT;
   if(options.compareArgs("THREAD MODEL", "OPENMP")) oogsMode = OOGS_DEFAULT;
   BP->ogs = (void*) oogs::setup(Ntotal,
                                 mesh->maskedGlobalIds,
@@ -428,8 +428,6 @@ void BPDestroy(BP_t *BP) {
   if(BP->solveWorkspace) free(BP->solveWorkspace);
   if(BP->invDegree) free(BP->invDegree);
   if(BP->EToB) free(BP->EToB);
-  if(BP->sendBuffer) free(BP->sendBuffer);
-  if(BP->recvBuffer) free(BP->recvBuffer);
   if(BP->gradSendBuffer) free(BP->gradSendBuffer);
   if(BP->gradRecvBuffer) free(BP->gradRecvBuffer);
   if(BP->o_solveWorkspace) delete[] BP->o_solveWorkspace;

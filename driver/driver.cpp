@@ -103,6 +103,7 @@ void driver(std::string parfile, MPI_Comm comm) {
   optionsThatVary[1].push_back("N ELEMENTS");
   optionsThatVary[2].push_back("THREAD MODEL");
   optionsThatVary[3].push_back("THREAD MODEL");
+  optionsThatVary[3].push_back("MPI");
   optionsThatVary[3].push_back("N");
   optionsThatVary[3].push_back("NX");
   optionsThatVary[3].push_back("NY");
