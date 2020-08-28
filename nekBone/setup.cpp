@@ -65,7 +65,7 @@ BP_t* setup(mesh_t* mesh, occa::properties &kernelInfo, setupAide &options, std:
         std::string key = nbFormatStringForFilename(optionsForFilename[i]);
         std::string val = options.getArgs(optionsForFilename[i]);
         if(key == "mpi" && val == "max")
-          val = std::to_string(mpiSize);
+          val = std::to_string(mesh->size);
         fname << "_" << key << "_" << val;
       }
       fname << ".txt";

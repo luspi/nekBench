@@ -1,0 +1,85 @@
+[GENERAL]
+format = 1.0
+verbose = false
+driver modus = true
+
+[BW]
+enabled = false
+MPI = 1
+thread model = CUDA,SERIAL
+
+[DOT]
+enabled = false
+MPI = 1
+N = 3
+n elements = 128
+thread model = SERIAL,CUDA
+arch = VOLTA
+n tests = 1
+device id = 0
+block size = 256
+global = 0
+
+[ALLREDUCE]
+enabled = false
+MPI = 1
+thread model = SERIAL
+
+[OGS]
+enabled = false
+MPI = 1
+thread model = CUDA
+N = 3
+nx/ny/nz = 2/2/2
+ogs mode = -1
+n tests = 1
+enabled timer = 0
+dummy kernel = 0
+float type = double
+GPUMPI = 0
+device number = 0
+
+[PINGPONG]
+enabled = false
+MPI = 1
+thread model = SERIAL,CUDA
+N = 3
+nx/ny/nz = 2/2/2
+device number = 0
+enabled timer = 0
+float type = double
+GPUMPI = 0
+
+[AXHELM]
+enabled = false
+MPI = 1
+N = 3
+ndim = 1
+n elements = 128
+thread model = SERIAL,CUDA
+arch = VOLTA
+bkmode = 1
+n tests = 1
+kernel version = 0
+
+[NEKBONE]
+enabled = true
+MPI = 1
+bpmode = 1
+n fields = 1
+overlap = 1
+lambda = 1.0
+polynomial degree = 3
+box nx/box ny/box nz = 2/2/2
+kernel id = 0
+platform number = 0
+device number = 0
+arch/thread model = VOLTA/CUDA,CPU/NATIVE+SERIAL
+Krylov solver = PCG
+preconditioner = COPY
+solver tolerance = 1e-6
+n repetitions = 1
+maximum iterations = 1
+fixed iteration count = 1
+profiling = 0
+timer sync = 1

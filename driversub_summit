@@ -1,0 +1,83 @@
+#/bin/bash
+
+: ${PROJ_ID:=""}
+
+: ${NEKBENCH_BUILD:="$PWD"}
+: ${OCCA_CACHE_DIR:="$PWD/.cache/occa"}
+NVME_HOME="/mnt/bb/$USER/"
+XL_HOME="/sw/summit/xl/16.1.1-3/xlC/16.1.1"
+
+: ${CPUONLY:=0}
+export NEKBENCH_BUILD
+export OCCA_CACHE_DIR
+export NEKRS_HYPRE_NUM_THREADS=1
+export OCCA_CXX="$XL_HOME/bin/xlc" 
+export OCCA_CXXFLAGS="-O3 -qarch=pwr9 -qhot -DUSE_OCCA_MEM_BYTE_ALIGN=64" 
+export OCCA_LDFLAGS="$XL_HOME/lib/libibmc++.a"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$NEKBENCH_BUILD/occa/lib/"
+export NEKBENCH_OUTPUT_DIR=$MEMBERWORK/csc262
+
+#export OCCA_VERBOSE=1
+#export OMPI_LD_PRELOAD_POSTPEND=$OLCF_SPECTRUM_MPI_ROOT/lib/libmpitrace.so
+
+if [ -z "$PROJ_ID" ]; then
+  echo "ERROR: PROJ_ID is empty"
+  exit 1
+fi
+
+if [ $# -ne 3 ]; then
+  echo "usage: [PROJ_ID] $0 <output dir> <number of compute nodes> <hh:mm>"
+  exit 0
+fi
+
+module load gcc
+
+bin=$NEKBENCH_BUILD/driver
+par=$NEKBENCH_BUILD/driver.par
+output_dir=$1
+nodes=$2
+gpu_per_node=6
+let nn=$nodes*$gpu_per_node
+let ntasks=nn
+time=$3
+
+if [ ! -f $bin ]; then
+  echo "Cannot find" $bin
+  exit 1
+fi
+
+if [ ! -f driver.par ]; then
+  echo "Cannot find driver.par"
+  exit 1
+fi
+
+jsrun=""
+
+if [ ! -f driverpre.par ]; then
+  echo "Cannot find driverpre.par"
+  exit 1
+fi
+
+mkdir -p $OCCA_CACHE_DIR 2>/dev/null
+
+while true; do
+  read -p "Do you want precompile (part of compute job, recommended)? [N]" yn
+  case $yn in
+    [Yy]* )
+      echo $NEKBENCH_BUILD
+      if [ ! -f driverpre.par ]; then
+        echo "Cannot find driverpre.par"
+        exit 1
+      fi
+      jsrun="$jsrun jsrun -X 1 -n$nodes -r1 -a1 -c1 -g1 -b packed:1 -d packed $bin driverpre.par;"
+      break ;;
+    * )
+      break ;;
+  esac
+done
+
+jsrun="$jsrun jsrun -X 1 -n$nodes -r1 -a1 -c1 -g0 -b packed:1 -d packed cp -a $OCCA_CACHE_DIR/* $NVME_HOME; export OCCA_CACHE_DIR=$NVME_HOME; jsrun -X 1 -n$nn -r$gpu_per_node -a1 -c2 -g1 -b rs -d packed $bin $par; mv $NEKBENCH_OUTPUT_DIR/{axhelm,allred,bw,dot,ogs,pingpong,nekBone}*txt $output_dir;"
+
+cmd="bsub -nnodes $nodes -alloc_flags NVME -W $time -P $PROJ_ID -J driver \"${jsrun}\""
+echo $cmd
+$cmd
