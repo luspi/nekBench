@@ -93,18 +93,18 @@ void bw(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   props["header"].asArray();
   props["flags"].asObject();
   setCompilerFlags(device, props);
-  occa::kernel triadKernel = device.buildKernel(DBP "kernel/triad.okl", "triad", props);
 
   timer::init(mpiComm, device, 0);
 
   {
     const int Ntests = 1000;
-    const int N[] = {1, 1000 * 512, 2000 * 512, 4000 * 512, 8000 * 512};
+    const int N[] = {1, 256*512, 512 * 512, 1000 * 512, 2000 * 512, 4000 * 512, 8000 * 512, 16000 * 512};
     const int Nsize = sizeof(N) / sizeof(int);
     const int nWords = N[sizeof(N) / sizeof(N[0]) - 1];
     occa::memory o_a = device.malloc(nWords * sizeof(double));
     occa::memory o_b = device.malloc(nWords * sizeof(double));
     occa::memory o_c = device.malloc(nWords * sizeof(double));
+    occa::kernel triadKernel = device.buildKernel(DBP "kernel/bwKernels.okl", "triad", props);
 
     for(int test = 0; test < Ntests; ++test) triadKernel(1000, 1.0, o_a, o_b, o_c);
 
@@ -135,40 +135,53 @@ void bw(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
     o_b.free();
     o_c.free();
 
-    occa::memory o_wrk = device.malloc(3 * nWords * sizeof(double));
-    o_a = o_wrk + 0 * nWords * sizeof(double);
-    o_b = o_wrk + 1 * nWords * sizeof(double);
-    o_c = o_wrk + 2 * nWords * sizeof(double);
-    for(int i = 0; i < Nsize; ++i) {
-      long long int bytes = 3 * N[i] * sizeof(double);
-      device.finish();
-      timer::reset("triad");
-      timer::tic("triad");
-      for(int test = 0; test < Ntests; ++test) triadKernel(N[i], 1.0, o_a, o_b, o_c);
-      device.finish();
-      timer::toc("triad");
-      timer::update();
-      double elapsed = timer::query("triad", "HOST:MAX") / Ntests;
-      std::stringstream out;
-      out << "triad stream subBuffer: "
-          << N[i] << " words, "
-          << elapsed << " s, "
-          << bytes / elapsed << " bytes/s\n";
-      if(driverModus) {
-        fprintf(outputFile, out.str().c_str());
-        fflush(outputFile);
-      } else {
-        printf(out.str().c_str());
-        fflush(stdout);
-      }
-    }
-    o_wrk.free();
   }
 
   if(driverModus)
     fprintf(outputFile, "\n");
   else
     printf("\n");
+  
+  
+  {
+    const int Ntests = 50;
+    const int blockSize = 128;
+    const int N = blockSize*1024*1024; 
+    const int Nblock = N/blockSize; 
+    occa::memory o_a = device.malloc(N * sizeof(double));
+    occa::kernel smemKernel = device.buildKernel(DBP "kernel/bwKernels.okl", "smem", props);
+
+    smemKernel(Nblock, N, o_a);
+
+    device.finish();
+    timer::reset("smem");
+    timer::tic("smem");
+    for(int test = 0; test < Ntests; ++test) smemKernel(Nblock, N, o_a);
+    device.finish();
+    timer::toc("smem");
+    timer::update();
+    double elapsed = timer::query("smem", "HOST:MAX") / (double)Ntests;
+    long bytes = blockSize*2*sizeof(double)*N;
+    std::stringstream out;
+    out << "shared mem bw: "
+        << elapsed << " s, "
+        << bytes / elapsed << " bytes/s\n";
+    if(driverModus) {
+      fprintf(outputFile, out.str().c_str());
+      fflush(outputFile);
+    } else {
+      printf(out.str().c_str());
+      fflush(stdout);
+    }
+    o_a.free();
+  }
+
+  if(driverModus)
+    fprintf(outputFile, "\n");
+  else
+    printf("\n");
+  
+  
 
   {
     const int N[] =
