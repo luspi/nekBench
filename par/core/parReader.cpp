@@ -76,7 +76,8 @@ void setDefaultSettings(std::vector<libParanumal::setupAide> &options)
   options[4].setArgs("NY", string("16"));
   options[4].setArgs("NZ", string("16"));
   options[4].setArgs("DEVICE NUMBER", string("0"));
-  options[4].setArgs("ENABLED TIMER", string("0"));
+  options[4].setArgs("DUMPTOFILE", string("1"));
+  options[4].setArgs("PWNMESSAGES", string("26"));
   options[4].setArgs("FLOAT TYPE", string("double"));
   options[4].setArgs("GPUMPI", string("0"));
 

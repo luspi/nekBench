@@ -46,7 +46,6 @@ thread model = SERIAL,CUDA
 N = 3
 nx/ny/nz = 8/16/16
 device number = 0
-enabled timer = 0
 float type = double
 GPUMPI = 0
 

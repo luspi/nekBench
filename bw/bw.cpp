@@ -97,8 +97,8 @@ void bw(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   timer::init(mpiComm, device, 0);
 
   {
-    const int Ntests = 1000;
-    const int N[] = {1, 256*512, 512 * 512, 1000 * 512, 2000 * 512, 4000 * 512, 8000 * 512, 16000 * 512};
+    const int Ntests = 2000;
+    const int N[] = {1, 1024, 8192, 16384, 64000, 256*512, 512 * 512, 1000 * 512, 2000 * 512, 4000 * 512, 8000 * 512, 16000 * 512};
     const int Nsize = sizeof(N) / sizeof(int);
     const int nWords = N[sizeof(N) / sizeof(N[0]) - 1];
     occa::memory o_a = device.malloc(nWords * sizeof(double));

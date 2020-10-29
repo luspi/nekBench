@@ -41,20 +41,21 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
 
   std::list<ogs_mode> ogs_mode_list;
   if(testOgsModes) {
-    int mode = std::stoi(options.getArgs("OGS MODE"));
+    const int mode = std::stoi(options.getArgs("OGS MODE"));
     if(mode > 0) {
-      if(mode > 4) {
+      if(mode > 2) {
         if(rank == 0) printf("invalid ogs_mode!\n");
         MPI_Abort(mpiComm,1);
       }
-      if(mode) ogs_mode_list.push_back((ogs_mode)(mode - 1));
+      if(mode >= 0) ogs_mode_list.push_back((ogs_mode)(mode - 1));
     } else {
       ogs_mode_list.push_back(OGS_DEFAULT);
       ogs_mode_list.push_back(OGS_HOSTMPI);
     }
   }
 
-  int enabledTimer = std::stoi(options.getArgs("ENABLED TIMER"));
+  bool dumptofile = std::stoi(options.getArgs("DUMPTOFILE"));
+  int pwNMessages = std::stoi(options.getArgs("PWNMESSAGES"));
   std::string floatType = options.getArgs("FLOAT TYPE");
   int unit_size = (floatType == "float" ? sizeof(float) : sizeof(double));
   int enabledGPUMPI = std::stoi(options.getArgs("GPUMPI"));
@@ -102,7 +103,7 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
   // setup gs
   const dlong Nlocal = mesh->Nelements * mesh->Np;
   ogs_t* ogs = ogsSetup(Nlocal, mesh->globalIds, mesh->comm, 1, mesh->device);
-  mygsSetup(ogs, enabledTimer);
+  mygsSetup(ogs);
   mesh->ogs = ogs;
 
   if(!driverModus)
@@ -182,12 +183,12 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
     mesh->device.finish();
     MPI_Barrier(mpiComm);
     {
-      const int nPairs = mesh->size / 2;
-      pingPongMulti(nPairs, 0, mesh->device, mpiComm, driverModus, options, optionsForFilename);
-      pingPongSingle(0, mesh->device, mpiComm, driverModus, options, optionsForFilename);
+      if(pwNMessages > mesh->size) pwNMessages = mesh->size-1;
+      pingPongSinglePair(dumptofile, 0, mesh->device, mesh->comm);
+      multiPairExchange(dumptofile, pwNMessages, 0, mesh->device, mesh->comm);
       if(enabledGPUMPI) {
-        pingPongMulti(nPairs, enabledGPUMPI, mesh->device, mpiComm, driverModus, options, optionsForFilename);
-        pingPongSingle(1, mesh->device, mpiComm, driverModus, options, optionsForFilename);
+        pingPongSinglePair(dumptofile, 1, mesh->device, mesh->comm);
+        multiPairExchange(dumptofile, pwNMessages, 1, mesh->device, mesh->comm);
       }
     }
 
@@ -199,47 +200,61 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
     int dummyKernel = std::stoi(options.getArgs("DUMMY KERNEL"));
 
     for (auto const& ogs_mode_enum : ogs_mode_list) {
+      
       occa::stream defaultStream = mesh->device.getStream();
       occa::stream kernelStream  = mesh->device.createStream();
 
-      // gs
+      // run with enabled timers
+      mygsEnableTimer(1);
       timer::reset();
       mesh->device.setStream(kernelStream);
       mesh->device.finish();
       MPI_Barrier(mesh->comm);
-      const double start = MPI_Wtime();
       for(int test = 0; test < Ntests; ++test) {
         mygsStart(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
         if(dummyKernel) {
-          if(enabledTimer) timer::tic("dummyKernel");
+          timer::tic("dummyKernel");
           kernel(Nlocal, o_U);
           mesh->device.setStream(defaultStream);
-          if(enabledTimer) timer::toc("dummyKernel");
+          timer::toc("dummyKernel");
         }
         mygsFinish(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
-        if(enabledTimer) timer::update();
+        timer::update();
       }
       mesh->device.finish();
       mesh->device.setStream(defaultStream);
       MPI_Barrier(mesh->comm);
-      const double elapsed = (MPI_Wtime() - start) / Ntests;
+
+      // run without timers
+      mygsEnableTimer(0);
+      const double start = MPI_Wtime();
+      for(int test=0;test<Ntests;++test) {
+        mygsStart(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
+        if(dummyKernel) {
+          kernel(Nlocal, o_U);
+          mesh->device.setStream(defaultStream);
+        }
+        mygsFinish(o_q, floatType.c_str(), ogsAdd, ogs, ogs_mode_enum);
+      }
+      mesh->device.finish();
+      mesh->device.setStream(defaultStream);
+      MPI_Barrier(mesh->comm);
+      const double elapsed = (MPI_Wtime() - start)/Ntests;
 
       // print stats
       const int Ntimer = 10;
       double etime[Ntimer];
-      if(enabledTimer) {
-        etime[0] = timer::query("gather_halo", "DEVICE:MAX");
-        etime[1] = timer::query("gs_interior", "DEVICE:MAX");
-        etime[2] = timer::query("scatter", "DEVICE:MAX");
-        etime[3] = timer::query("gs_host", "HOST:MAX");
-        etime[4] = timer::query("gs_memcpy_dh", "DEVICE:MAX");
-        etime[5] = timer::query("gs_memcpy_hd", "DEVICE:MAX");
-        etime[6] = timer::query("dummyKernel", "DEVICE:MAX");
-        etime[7] = timer::query("pw_exec", "HOST:MAX");
-        etime[8] = timer::query("pack", "DEVICE:MAX");
-        etime[9] = timer::query("unpack", "DEVICE:MAX");
-        for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
-      }
+    etime[0] = timer::query("gather_halo", "DEVICE:MAX");
+    etime[1] = timer::query("gs_interior", "DEVICE:MAX");
+    etime[2] = timer::query("scatter", "DEVICE:MAX");
+    etime[3] = timer::query("gs_host", "HOST:MAX");
+    etime[4] = timer::query("gs_memcpy_dh", "DEVICE:MAX");
+    etime[5] = timer::query("gs_memcpy_hd", "DEVICE:MAX");
+    etime[6] = timer::query("dummyKernel", "DEVICE:MAX");
+    etime[7] = timer::query("pw_exec", "HOST:MAX");
+    etime[8] = timer::query("pack", "DEVICE:MAX");
+    etime[9] = timer::query("unpack", "DEVICE:MAX");
+    for(int i = 0; i < Ntimer; i++) etime[i] = std::max(etime[i],0.0) / Ntests;
 
       if(mesh->rank == 0) {
 
@@ -273,8 +288,10 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
         std::stringstream out;
         out << "\nsummary\n"
             << "  ogsMode                       : " << ogs_mode_enum << "\n"
-            << "  MPItasks                      : " << mesh->size << "\n"
-            << "  polyN                         : " << N << "\n"
+            << "  MPItasks                      : " << mesh->size << "\n";
+        if(options.compareArgs("THREAD MODEL", "OPENMP"))
+          out << "  OMPthreads                    : " << Nthreads << "\n";
+        out << "  polyN                         : " << N << "\n"
             << "  Nelements                     : " << NX * NY * NZ << "\n"
             << "  Nrepetitions                  : " << Ntests << "\n"
             << "  floatType                     : " << floatType << "\n"
@@ -282,21 +299,19 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
         ((double)(NX * NY * NZ) * N * N * N / elapsed) / 1.e9 << " GDOF/s\n"
             << "  avg elapsed time              : " << elapsed << " s\n";
 
-        if(enabledTimer) {
-          out << "    gather halo                 : " << etime[0] << " s\n"
-              << "    gs interior                 : " << etime[1] << " s\n"
-              << "    scatter halo                : " << etime[2] << " s\n"
-              << "    memcpy host<->device        : " << etime[4] + etime[5] << " s\n";
+        out << "    gather halo                 : " << etime[0] << " s\n"
+            << "    gs interior                 : " << etime[1] << " s\n"
+            << "    scatter halo                : " << etime[2] << " s\n"
+            << "    memcpy host<->device        : " << etime[4] + etime[5] << " s\n";
 
-          if(ogs_mode_enum == OGS_DEFAULT)
-            out << "    gslib_host                  : " << etime[3] << " s\n";
-          else
-            out << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
-                << "    pw exec                     : " << etime[7] << " s\n";
+        if(ogs_mode_enum == OGS_DEFAULT)
+        out << "    gslib_host                  : " << etime[3] << " s\n";
+        else
+        out << "    pack/unpack buf             : " << etime[8] + etime[9] << " s\n"
+            << "    pw exec                     : " << etime[7] << " s\n";
 
-          out << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
+        out << "  avg elapsed time dummy kernel : " << etime[6] << " s\n";
 
-        }
         if(driverModus) {
           fprintf(outputFile, out.str().c_str());
           fclose(outputFile);

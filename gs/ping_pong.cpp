@@ -2,14 +2,16 @@
 #include <assert.h>
 #include <unistd.h>
 #include <occa.hpp>
+#include <numeric>
+#include <algorithm>
 #include "setupAide.hpp"
 
 #define FIELD_WIDTH 20
 #define FLOAT_PRECISION 2
 #define LARGE_MESSAGE_SIZE 8192
-#define LAT_LOOP_SMALL 10000
+#define LAT_LOOP_SMALL 1000
 #define LAT_SKIP_SMALL 100
-#define LAT_LOOP_LARGE 1000
+#define LAT_LOOP_LARGE 100
 #define LAT_SKIP_LARGE 10
 
 #define MPI_CHECK(stmt)                                          \
@@ -34,9 +36,6 @@ struct options_t
   size_t pairs;
 };
 
-static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename);
-static void single_latency( MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename);
-
 std::string ppFormatStringForFilename(std::string in) {
   std::string out = in;
   size_t pos = out.find(" ");
@@ -47,23 +46,23 @@ std::string ppFormatStringForFilename(std::string in) {
   std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c){ return std::tolower(c); });
   return out;
 }
+static void pingpong(bool dumptofile, MPI_Comm comm);
+static void pairexchange(bool dumptofile, int nmessages, MPI_Comm comm);
 
 // GLOBALS
 struct options_t options;
-char* s_buf, * r_buf;
+int *s_buf, *r_buf;
 
 extern "C" { // Begin C Linkage
-int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
-{
+
+int pingPongSinglePair(bool dumptofile, int useDevice, occa::device device, MPI_Comm comm) {
+
   int size, rank;
   MPI_Comm_size(comm,&size);
   MPI_Comm_rank(comm,&rank);
 
-  if(size == 0 || size % 2 != 0) return 1;
-
   options.min_message_size = 0;
-  options.max_message_size = 1 << 20;
-  options.pairs = pairs;
+  options.max_message_size = (1 << 18) / sizeof(int);
 
   options.iterations = LAT_LOOP_SMALL;
   options.skip = LAT_SKIP_SMALL;
@@ -74,23 +73,23 @@ int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, 
   occa::memory o_r_buf;
 
   if(useDevice) {
-    o_s_buf = device.malloc(options.max_message_size);
-    o_r_buf = device.malloc(options.max_message_size);
-    s_buf = (char*) o_s_buf.ptr();
-    r_buf = (char*) o_s_buf.ptr();
+    o_s_buf = device.malloc(options.max_message_size*sizeof(int));
+    o_r_buf = device.malloc(options.max_message_size*sizeof(int));
+    s_buf = (int*) o_s_buf.ptr();
+    r_buf = (int*) o_s_buf.ptr();
   } else {
     unsigned long align_size = sysconf(_SC_PAGESIZE);
-    posix_memalign((void**)&s_buf, align_size, options.max_message_size);
-    posix_memalign((void**)&r_buf, align_size, options.max_message_size);
+    posix_memalign((void**)&s_buf, align_size, options.max_message_size*sizeof(int));
+    posix_memalign((void**)&r_buf, align_size, options.max_message_size*sizeof(int));
   }
 
   if(rank == 0) {
-    printf("\nping pong multi - pairs: %d useDevice: %d\n", pairs, useDevice);
-    fflush(stdout);
+      printf("\npingpong - useDevice: %d\n", useDevice);
+      fflush(stdout);
   }
 
   MPI_CHECK(MPI_Barrier(comm));
-  multi_latency(comm, driverModus, opt, optionsForFilename);
+  pingpong(dumptofile, comm);
   MPI_CHECK(MPI_Barrier(comm));
 
   if(useDevice) {
@@ -102,173 +101,61 @@ int pingPongMulti(int pairs, int useDevice, occa::device device, MPI_Comm comm, 
   }
 
   return EXIT_SUCCESS;
+
 }
 
-int pingPongSingle(int useDevice, occa::device device, MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
-{
+int multiPairExchange(bool dumptofile, int nmessages, int useDevice, occa::device device, MPI_Comm comm) {
 
-    int size, rank;
-    MPI_Comm_size(comm,&size);
-    MPI_Comm_rank(comm,&rank);
+  int size, rank;
+  MPI_Comm_size(comm,&size);
+  MPI_Comm_rank(comm,&rank);
 
-    options.min_message_size = 0;
-    options.max_message_size = 1 << 20;
+  options.min_message_size = 0;
+  options.max_message_size = (1 << 16) / sizeof(int);
 
-    options.iterations = LAT_LOOP_SMALL;
-    options.skip = LAT_SKIP_SMALL;
-    options.iterations_large = LAT_LOOP_LARGE;
-    options.skip_large = LAT_SKIP_LARGE;
+  options.iterations = LAT_LOOP_SMALL;
+  options.skip = LAT_SKIP_SMALL;
+  options.iterations_large = LAT_LOOP_LARGE;
+  options.skip_large = LAT_SKIP_LARGE;
 
-    occa::memory o_s_buf;
-    occa::memory o_r_buf;
+  occa::memory o_s_buf;
+  occa::memory o_r_buf;
 
-    if(useDevice) {
-      o_s_buf = device.malloc(options.max_message_size);
-      o_r_buf = device.malloc(options.max_message_size);
-      s_buf = (char*) o_s_buf.ptr();
-      r_buf = (char*) o_s_buf.ptr();
-    } else {
-      unsigned long align_size = sysconf(_SC_PAGESIZE);
-      posix_memalign((void**)&s_buf, align_size, options.max_message_size);
-      posix_memalign((void**)&r_buf, align_size, options.max_message_size);
-    }
+  if(useDevice) {
+    o_s_buf = device.malloc(nmessages*options.max_message_size*sizeof(int));
+    o_r_buf = device.malloc(nmessages*options.max_message_size*sizeof(int));
+    s_buf = (int*) o_s_buf.ptr();
+    r_buf = (int*) o_s_buf.ptr();
+  } else {
+    unsigned long align_size = sysconf(_SC_PAGESIZE);
+    posix_memalign((void**)&s_buf, align_size, nmessages*options.max_message_size*sizeof(int));
+    posix_memalign((void**)&r_buf, align_size, nmessages*options.max_message_size*sizeof(int));
+  }
 
-    if(rank == 0) {
-        if(size > 2)
-            printf("\nping pong single - ranks 1-%d to rank 0, useDevice: %d\n", size-1, useDevice);
-        else
-            printf("\nping pong single - ranks 1 to rank 0, useDevice: %d\n", useDevice);
-        fflush(stdout);
-    }
+  if(rank == 0) {
+      printf("\npairwise exchange - n messages: %d,  useDevice: %d\n", nmessages, useDevice);
+      fflush(stdout);
+  }
 
-    MPI_CHECK(MPI_Barrier(comm));
-    single_latency(comm, driverModus, opt, optionsForFilename);
-    MPI_CHECK(MPI_Barrier(comm));
+  MPI_CHECK(MPI_Barrier(comm));
+  pairexchange(dumptofile, nmessages, comm);
+  MPI_CHECK(MPI_Barrier(comm));
 
-    if(useDevice) {
-      o_s_buf.free();
-      o_r_buf.free();
-    } else {
-      free(s_buf);
-      free(r_buf);
-    }
+  if(useDevice) {
+    o_s_buf.free();
+    o_r_buf.free();
+  } else {
+    free(s_buf);
+    free(r_buf);
+  }
 
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
+
 }
+
 } // end C Linkage
 
-static void multi_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename)
-{
-  int size, partner;
-  int i;
-  double t_start = 0.0, t_end = 0.0,
-         latency = 0.0, total_lat = 0.0,
-         avg_lat = 0.0;
-
-  int mpiRank, mpiSize;
-  MPI_Comm_rank(comm,&mpiRank);
-  MPI_Comm_size(comm,&mpiSize);
-  MPI_Status reqstat;
-
-  FILE *outputFile;
-
-  if(mpiRank == 0 && driverModus) {
-
-    std::stringstream fname;
-
-    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
-    if(outdir)
-      fname << outdir << "/";
-
-    if(optionsForFilename.size() == 0)
-      fname << "pingpong_multi_" << mpiSize << "_ranks.txt";
-    else {
-      fname << "pingpong_multi";
-      for(int i = 0; i < optionsForFilename.size(); ++i) {
-        std::string key = ppFormatStringForFilename(optionsForFilename[i]);
-        std::string val = opt.getArgs(optionsForFilename[i]);
-        if(key == "mpi" && val == "max")
-          val = std::to_string(mpiSize);
-        fname << "_" << key << "_" << val;
-      }
-      fname << ".txt";
-    }
-
-    outputFile = fopen(fname.str().c_str(), "w");
-    fprintf(outputFile, "%-*s%*s\n", 15, "bytes", FIELD_WIDTH, "average latency");
-
-    printf("writing results to %s\n", fname.str().c_str());
-
-  }
-
-  int pairs = options.pairs;
-
-  for(size = options.min_message_size; size <= options.max_message_size;
-      size  = (size ? size * 2 : 1)) {
-    MPI_CHECK(MPI_Barrier(comm));
-
-    if(size > LARGE_MESSAGE_SIZE) {
-      options.iterations = options.iterations_large;
-      options.skip = options.skip_large;
-    } else {
-      options.iterations = options.iterations;
-      options.skip = options.skip;
-    }
-
-    if (mpiRank < pairs) {
-      partner = mpiRank + pairs;
-
-      for (i = 0; i < options.iterations + options.skip; i++) {
-        if (i == options.skip) {
-          t_start = MPI_Wtime();
-          MPI_CHECK(MPI_Barrier(comm));
-        }
-
-        MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, partner, 1, comm));
-        MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, partner, 1, comm,
-                           &reqstat));
-      }
-
-      t_end = MPI_Wtime();
-    } else {
-      partner = mpiRank - pairs;
-
-      for (i = 0; i < options.iterations + options.skip; i++) {
-        if (i == options.skip) {
-          t_start = MPI_Wtime();
-          MPI_CHECK(MPI_Barrier(comm));
-        }
-
-        MPI_CHECK(MPI_Recv(r_buf, size, MPI_CHAR, partner, 1, comm,
-                           &reqstat));
-        MPI_CHECK(MPI_Send(s_buf, size, MPI_CHAR, partner, 1, comm));
-      }
-
-      t_end = MPI_Wtime();
-    }
-
-    latency = (t_end - t_start) * 1.0e6 / (2.0 * options.iterations);
-
-    MPI_CHECK(MPI_Reduce(&latency, &total_lat, 1, MPI_DOUBLE, MPI_SUM, 0,
-                         comm));
-
-    avg_lat = total_lat / (double) (pairs * 2);
-
-    if(0 == mpiRank) {
-      if(driverModus) {
-        fprintf(outputFile, "%-*d%*.*f\n", 10, size, FIELD_WIDTH,
-                FLOAT_PRECISION, avg_lat);
-        fflush(outputFile);
-      } else {
-        fprintf(stdout, "%-*d%*.*f\n", 10, size, FIELD_WIDTH,
-                FLOAT_PRECISION, avg_lat);
-        fflush(stdout);
-      }
-    }
-  }
-}
-
-static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::vector<std::string> optionsForFilename) {
+static void pingpong(bool dumptofile, MPI_Comm comm) {
 
   int myRank, mpiSize;
   MPI_Comm_rank(comm, &myRank);
@@ -286,38 +173,30 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
   all_max = (double*)calloc(loopCounter, sizeof(double));
   all_avg = (double*)calloc(loopCounter, sizeof(double));
 
-  FILE *outputFile;
+  FILE *fp;
+  if(0 == myRank) {
 
-  if(myRank == 0) {
+    if(dumptofile) {
 
-    std::stringstream fname;
+      time_t rawtime;
+      struct tm *timeinfo;
+      time(&rawtime);
+      timeinfo = localtime(&rawtime);
+      char timebuffer[80];
+      char buffer[80];
+      strftime(timebuffer,80,"%Y_%m_%d_%R.txt", timeinfo);
+      sprintf(buffer, "pingpong_%s", timebuffer);
+      fp = fopen(buffer, "w");
+      fprintf(fp, "%-10s %-10s %-10s %-10s %-15s %-15s\n", "sender", "total", "receiver", "loopcount", "bytes", "timing");
 
-    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
-    if(outdir)
-      fname << outdir << "/";
+    } else
 
-    if(optionsForFilename.size() == 0)
-      fname << "pingpong_single_" << mpiSize << "_ranks.txt";
-    else {
-      fname << "pingpong_single";
-      for(int i = 0; i < optionsForFilename.size(); ++i) {
-        std::string key = ppFormatStringForFilename(optionsForFilename[i]);
-        std::string val = opt.getArgs(optionsForFilename[i]);
-        if(key == "mpi" && val == "max")
-          val = std::to_string(mpiSize);
-        fname << "_" << key << "_" << val;
-      }
-      fname << ".txt";
-    }
-
-    outputFile = fopen(fname.str().c_str(), "w");
-    fprintf(outputFile, "%-10s %-10s %-10s %-10s %-15s %-15s\n", "sender", "total", "receiver", "loopcount", "bytes", "timing");
-
-    printf("writing detailed results to %s\n", fname.str().c_str());
+      printf("%-10s %-10s %-10s %-10s %-15s %-15s\n", "sender", "total", "receiver", "loopcount", "bytes", "timing");
 
   }
 
   int maxRank = std::min(512, mpiSize);
+  int rankLoopCounter = 0;
   for(int iRank = 1; iRank < maxRank; iRank = (iRank<32||maxRank<128 ? iRank+1 : (maxRank-1-iRank < 5 ? maxRank-1 : iRank+5))) {
 
     int iSize = 0;
@@ -336,8 +215,6 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
 
       double latency = 0;
 
-      MPI_Request rReq, sReq;
-
       if(myRank == iRank) {
 
         double t_start = 0;
@@ -347,11 +224,8 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
           if(i == options.skip)
             t_start = MPI_Wtime();
 
-          MPI_CHECK(MPI_Isend(s_buf, size, MPI_CHAR, 0, 1, comm, &rReq));
-          MPI_CHECK(MPI_Irecv(r_buf, size, MPI_CHAR, 0, 1, comm, &sReq));
-
-          MPI_CHECK(MPI_Wait(&rReq, MPI_STATUS_IGNORE));
-          MPI_CHECK(MPI_Wait(&sReq, MPI_STATUS_IGNORE));
+          MPI_CHECK(MPI_Recv(r_buf, size, MPI_INT, 0, 1, comm, MPI_STATUS_IGNORE));
+          MPI_CHECK(MPI_Send(s_buf, size, MPI_INT, 0, 1, comm));
 
         }
 
@@ -369,11 +243,8 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
           if(i == options.skip)
             t_start = MPI_Wtime();
 
-          MPI_CHECK(MPI_Irecv(r_buf, size, MPI_CHAR, iRank, 1, comm, &rReq));
-          MPI_CHECK(MPI_Isend(s_buf, size, MPI_CHAR, iRank, 1, comm, &sReq));
-
-          MPI_CHECK(MPI_Wait(&rReq, MPI_STATUS_IGNORE));
-          MPI_CHECK(MPI_Wait(&sReq, MPI_STATUS_IGNORE));
+          MPI_CHECK(MPI_Send(s_buf, size, MPI_INT, iRank, 1, comm));
+          MPI_CHECK(MPI_Recv(r_buf, size, MPI_INT, iRank, 1, comm, MPI_STATUS_IGNORE));
 
         }
 
@@ -400,7 +271,10 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
           all_max[iSize] = avg_lat;
         all_avg[iSize] += avg_lat;
 
-        fprintf(outputFile, "%-10d %-10d %-10d %-10d %-15d %-15f\n", iRank, mpiSize, 0, options.iterations, size, avg_lat);
+        if(dumptofile)
+          fprintf(fp, "%-10d %-10d %-10d %-10d %-15d %-15f\n", iRank, mpiSize, 0, options.iterations, size*4, avg_lat);
+        else
+          printf("%-10d %-10d %-10d %-10d %-15d %-15f\n", iRank, mpiSize, 0, options.iterations, size*4, avg_lat);
 
       }
 
@@ -408,66 +282,168 @@ static void single_latency(MPI_Comm comm, bool driverModus, setupAide opt, std::
 
     }
 
+    ++rankLoopCounter;
+
     if(iRank == maxRank-1)
       break;
 
   }
 
   if(myRank == 0) {
+    printf("%-10s %-13s %-13s %-13s\n", "bytes", "average", "minimum", "maximum");
+    for(int i = 0; i < loopCounter; ++i)
+      printf("%-10d %-13f %-13f %-13f\n", all_sizes[i]*4, all_avg[i]/((double)rankLoopCounter), all_min[i], all_max[i]);
+    fflush(stdout);
 
-    if(driverModus) {
+    if(dumptofile)
+      fclose(fp);
 
-      std::stringstream fname;
+  }
 
-      const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
-      if(outdir)
-        fname << outdir << "/";
+  free(all_sizes);
+  free(all_min);
+  free(all_max);
+  free(all_avg);
 
+}
 
-      if(optionsForFilename.size() == 0)
-        fname << "pingpong_single_summary_" << mpiSize << "_ranks.txt";
-      else {
-        fname << "pingpong_single_summary";
-        for(int i = 0; i < optionsForFilename.size(); ++i) {
-          std::string key = ppFormatStringForFilename(optionsForFilename[i]);
-          std::string val = opt.getArgs(optionsForFilename[i]);
-          if(key == "mpi" && val == "max")
-            val = std::to_string(mpiSize);
-          fname << "_" << key << "_" << val;
-        }
-        fname << ".txt";
-      }
-      FILE *outputFileSummary = fopen(fname.str().c_str(), "w");
+static void pairexchange(bool dumptofile, int nmessages, MPI_Comm comm) {
 
-      printf("writing summary to %s\n", fname.str().c_str());
+  int myRank, mpiSize;
+  MPI_Comm_rank(comm, &myRank);
+  MPI_Comm_size(comm, &mpiSize);
 
-      fprintf(outputFileSummary, "%-10s %-13s %-13s %-13s\n", "bytes", "average", "minimum", "maximum");
-      for(int i = 0; i < loopCounter; ++i) {
-        fprintf(outputFileSummary, "%-10d %-13f %-13f %-13f\n", all_sizes[i], all_avg[i]/((double)(mpiSize-1)), all_min[i], all_max[i]);
-      }
-      double avg_sum = 0;
-      for(int i = 0; i < loopCounter; ++i)
-        avg_sum += all_avg[i];
-      fprintf(outputFileSummary, "\nGlobal average: %f\n\n", avg_sum/(double)loopCounter);
-      fflush(outputFileSummary);
+  // create communicator for shared memory
+  MPI_Comm commdup;
+  MPI_Comm_dup(comm, &commdup);
+  MPI_Comm sharedcomm;
+  MPI_Comm_split_type(commdup, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &sharedcomm);
+  int sharedsize;
+  MPI_Comm_size(sharedcomm, &sharedsize);
 
-      fclose(outputFileSummary);
+  if(sharedsize == mpiSize)
+    sharedsize = 1;
 
+  int mypartner;
+  if((int(myRank/sharedsize))%2 == 0) {
+    mypartner = (myRank + sharedsize)%mpiSize;
+    if(mypartner == myRank && mpiSize > 1)
+      mypartner = (mypartner+1)%mpiSize;
+  } else {
+    mypartner = (mpiSize + myRank - sharedsize)%mpiSize;
+    if(mypartner == myRank && mpiSize > 1)
+      mypartner = (mypartner-1)%mpiSize;
+  }
+
+  int loopCounter = 0;
+  for(int size = options.min_message_size; size <= options.max_message_size; size=((int)(size*1.1) > size ? (int)(size*1.1) : size+1))
+    loopCounter += 1;
+
+  int *all_sizes;
+  double *all_min, *all_max, *all_avg;
+
+  all_sizes = (int*)calloc(loopCounter, sizeof(int));
+  all_min = (double*)calloc(loopCounter, sizeof(double));
+  all_max = (double*)calloc(loopCounter, sizeof(double));
+  all_avg = (double*)calloc(loopCounter, sizeof(double));
+
+  FILE *fp;
+  if(0 == myRank) {
+
+    if(dumptofile) {
+
+      time_t rawtime;
+      struct tm *timeinfo;
+      time(&rawtime);
+      timeinfo = localtime(&rawtime);
+      char timebuffer[80];
+      char buffer[80];
+      strftime(timebuffer,80,"%Y_%m_%d_%R.txt", timeinfo);
+      sprintf(buffer, "pairwiseexchange_nmessages_%i_%s", nmessages, timebuffer);
+      fp = fopen(buffer, "w");
+      fprintf(fp, "%-10s %-10s %-10s %-15s %-15s\n", "total", "loopcount", "n messages", "bytes", "timing");
+
+    } else
+
+      printf("%-10s %-10s %-10s %-15s %-15s\n", "total", "loopcount", "n messages", "bytes", "timing");
+
+  }
+
+  int iSize = 0;
+
+  for(int size = options.min_message_size; size <= options.max_message_size; size=((int)(size*1.1) > size ? (int)(size*1.1) : size+1)) {
+
+    MPI_CHECK(MPI_Barrier(comm));
+
+    if(size > LARGE_MESSAGE_SIZE) {
+      options.iterations = options.iterations_large;
+      options.skip = options.skip_large;
     } else {
+      options.iterations = options.iterations;
+      options.skip = options.skip;
+    }
 
-      printf("%-10s %-13s %-13s %-13s\n", "bytes", "average", "minimum", "maximum");
-      for(int i = 0; i < loopCounter; ++i) {
-        printf("%-10d %-13f %-13f %-13f\n", all_sizes[i], all_avg[i]/((double)(mpiSize-1)), all_min[i], all_max[i]);
-      }
-      double avg_sum = 0;
-      for(int i = 0; i < loopCounter; ++i)
-        avg_sum += all_avg[i];
-      printf("\nGlobal average: %f\n\n", avg_sum/(double)loopCounter);
-      fflush(stdout);
+    double t_start = 0;
+
+    MPI_Request allReqS[nmessages];
+    MPI_Request allReqR[nmessages];
+
+    for(int i = 0; i < options.iterations + options.skip; i++) {
+
+      if(i == options.skip)
+        t_start = MPI_Wtime();
+
+      for(int iMessage = 0; iMessage < nmessages; ++iMessage)
+        MPI_CHECK(MPI_Irecv(&r_buf[iMessage*options.max_message_size], size, MPI_INT, mypartner, iMessage, MPI_COMM_WORLD, &allReqR[iMessage]));
+      for(int iMessage = 0; iMessage < nmessages; ++iMessage)
+        MPI_CHECK(MPI_Isend(&s_buf[iMessage*options.max_message_size], size, MPI_INT, mypartner, iMessage, MPI_COMM_WORLD, &allReqS[iMessage]));
+
+      MPI_CHECK(MPI_Waitall(nmessages, allReqS, MPI_STATUSES_IGNORE));
+      MPI_CHECK(MPI_Waitall(nmessages, allReqR, MPI_STATUSES_IGNORE));
 
     }
 
-    fclose(outputFile);
+    double t_end = MPI_Wtime();
+
+    double latency = (t_end - t_start) * 1.0e6 / options.iterations;
+
+    if(myRank == 0)
+      all_sizes[iSize] = size;
+
+    double alllatencies[mpiSize];
+    MPI_Gather(&latency, 1, MPI_DOUBLE, alllatencies, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    if(0 == myRank) {
+
+      double avglatency = std::accumulate(alllatencies, alllatencies+mpiSize, 0.0f)/(double)mpiSize;
+      double minlatency = *std::min_element(alllatencies, alllatencies+mpiSize);
+      double maxlatency = *std::max_element(alllatencies, alllatencies+mpiSize);
+
+      if(all_min[iSize] > minlatency || all_min[iSize] == 0)
+        all_min[iSize] = minlatency;
+      if(all_max[iSize] < maxlatency)
+        all_max[iSize] = maxlatency;
+      all_avg[iSize] += avglatency;
+
+      if(dumptofile)
+        fprintf(fp, "%-10d %-10d %-10d %-15d %-15f\n", mpiSize, options.iterations, nmessages, size*4, avglatency);
+      else
+        printf("%-10d %-10d %-10d %-15d %-15f\n", mpiSize, options.iterations, nmessages, size*4, avglatency);
+
+    }
+
+    ++iSize;
+
+  }
+
+  if(myRank == 0) {
+    printf("%-10s %-13s %-13s %-13s\n", "bytes", "average", "minimum", "maximum");
+    for(int i = 0; i < loopCounter; ++i)
+      printf("%-10d %-13f %-13f %-13f\n", all_sizes[i]*4, all_avg[i], all_min[i], all_max[i]);
+    fflush(stdout);
+
+    if(dumptofile)
+      fclose(fp);
 
   }
 
