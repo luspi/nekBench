@@ -184,10 +184,10 @@ void gs(setupAide &options, std::vector<std::string> optionsForFilename, MPI_Com
     MPI_Barrier(mpiComm);
     {
       if(pwNMessages > mesh->size) pwNMessages = mesh->size-1;
-      pingPongSinglePair(dumptofile, 0, mesh->device, mesh->comm);
+//       pingPongSinglePair(dumptofile, 0, mesh->device, mesh->comm);
       multiPairExchange(dumptofile, pwNMessages, 0, mesh->device, mesh->comm);
       if(enabledGPUMPI) {
-        pingPongSinglePair(dumptofile, 1, mesh->device, mesh->comm);
+//         pingPongSinglePair(dumptofile, 1, mesh->device, mesh->comm);
         multiPairExchange(dumptofile, pwNMessages, 1, mesh->device, mesh->comm);
       }
     }
