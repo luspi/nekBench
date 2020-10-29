@@ -61,10 +61,11 @@ void allred(setupAide &options, std::vector<std::string> optionsForFilename, MPI
     if(outdir)
       fname << outdir << "/";
 
+    const char* outdir = std::getenv("NEKBENCH_OUTPUT_DIR");
     if(optionsForFilename.size() == 0)
-      fname << "allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";
+      fname << outdir << "/allreduce_" << threadModel << "_ranks_" << mpiSize << ".txt";
     else {
-      fname << "allreduce";
+      fname << outdir << "/allreduce";
       for(int i = 0; i < optionsForFilename.size(); ++i)
         fname << "_" << allredFormatStringForFilename(optionsForFilename[i]) << "_" << options.getArgs(optionsForFilename[i]);
       fname << ".txt";
